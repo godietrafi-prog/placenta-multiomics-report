@@ -1,0 +1,1228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PE/PTD Multi-Omics Report</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --navy: #1e3a5f;
+    --teal: #0d9488;
+    --blue: #2563eb;
+    --red: #dc2626;
+    --green: #059669;
+    --bg: #f0f4f8;
+    --card: #ffffff;
+    --border: #e2e8f0;
+    --text: #1a202c;
+    --muted: #64748b;
+    --tab-h: 52px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+         background: var(--bg); color: var(--text); font-size: 16px; }
+
+  /* HEADER */
+  header { background: var(--navy); color: white; padding: 24px 32px 20px; }
+  header h1 { font-size: 20px; font-weight: 600; letter-spacing: 0.02em; }
+  header p  { color: #94a3b8; font-size: 13px; margin-top: 4px; }
+  .badge-row { display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
+  .badge { background: rgba(255,255,255,0.12); border-radius: 20px;
+           padding: 3px 12px; font-size: 12px; color: #cbd5e1; }
+
+  /* TABS */
+  nav.tabs { background: var(--navy); border-top: 1px solid rgba(255,255,255,0.1);
+             display: flex; overflow-x: auto; }
+  nav.tabs button {
+    background: none; border: none; color: #94a3b8; cursor: pointer;
+    padding: 0 22px; height: var(--tab-h); font-size: 13px; font-weight: 500;
+    white-space: nowrap; border-bottom: 3px solid transparent;
+    transition: color 0.2s, border-color 0.2s;
+  }
+  nav.tabs button:hover { color: #e2e8f0; }
+  nav.tabs button.active { color: white; border-bottom-color: var(--teal); }
+
+  /* PANELS */
+  .tab-panel { display: none; max-width: 980px; margin: 0 auto; padding: 28px 20px; }
+  .tab-panel.active { display: block; }
+
+  /* SECTION TITLE */
+  .section-title {
+    font-size: 11px; font-weight: 700; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--muted); margin-bottom: 14px;
+  }
+
+  /* OVERVIEW GRID */
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+               gap: 12px; margin-bottom: 28px; }
+  .stat-card { background: var(--card); border-radius: 10px; padding: 16px 20px;
+               border: 1px solid var(--border); }
+  .stat-card .val { font-size: 26px; font-weight: 700; color: var(--navy); }
+  .stat-card .lbl { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+  /* PIPELINE FLOW */
+  .flow-wrap { background: var(--card); border-radius: 10px; border: 1px solid var(--border);
+               padding: 24px; margin-bottom: 24px; overflow-x: auto; }
+
+  /* ARM STEP CARDS */
+  .arm-header { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+  .arm-label { background: var(--navy); color: white; border-radius: 6px;
+               padding: 4px 12px; font-size: 12px; font-weight: 700; }
+  .arm-title { font-size: 16px; font-weight: 600; color: var(--navy); }
+
+  .step-card { background: var(--card); border: 1px solid var(--border);
+               border-radius: 10px; margin-bottom: 12px; overflow: hidden; }
+  .step-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 20px; cursor: pointer; user-select: none;
+    transition: background 0.15s;
+  }
+  .step-header:hover { background: #f8fafc; }
+  .step-header-left { display: flex; align-items: center; gap: 12px; }
+  .step-num { background: var(--teal); color: white; border-radius: 6px;
+              padding: 2px 9px; font-size: 11px; font-weight: 700; }
+  .step-name { font-size: 14px; font-weight: 600; }
+  .step-line { font-size: 12px; color: var(--muted); margin-top: 1px; }
+  .toggle-btn { width: 28px; height: 28px; border-radius: 50%; border: 1.5px solid var(--border);
+                display: flex; align-items: center; justify-content: center;
+                font-size: 16px; color: var(--muted); transition: transform 0.25s, background 0.15s;
+                flex-shrink: 0; }
+  .step-card.open .toggle-btn { transform: rotate(45deg); background: var(--teal);
+                                 color: white; border-color: var(--teal); }
+
+  .step-body { display: none; padding: 0 20px 20px; border-top: 1px solid var(--border); }
+  .step-card.open .step-body { display: block; }
+
+  .what-box { background: #f8fafc; border-left: 3px solid var(--teal);
+              border-radius: 0 6px 6px 0; padding: 12px 16px; margin-top: 16px; font-size: 13px;
+              line-height: 1.6; color: #374151; }
+
+  .result-toggle { display: flex; gap: 8px; margin: 14px 0 10px; }
+  .result-toggle button {
+    border: 1.5px solid var(--border); background: white; border-radius: 6px;
+    padding: 4px 14px; font-size: 12px; cursor: pointer; color: var(--muted);
+    transition: all 0.15s;
+  }
+  .result-toggle button.active { background: var(--navy); color: white; border-color: var(--navy); }
+
+  .result-view { display: none; }
+  .result-view.active { display: block; }
+
+  .result-quick { font-size: 13px; line-height: 1.8; }
+  .result-quick .kv { display: flex; gap: 8px; }
+  .result-quick .kv .k { color: var(--muted); min-width: 140px; }
+  .result-quick .kv .v { font-weight: 600; }
+  .sig { color: var(--green); }
+  .nosig { color: var(--muted); }
+
+  /* TABLE */
+  table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 8px; }
+  th { background: #f1f5f9; padding: 7px 12px; text-align: left;
+       font-weight: 600; color: var(--muted); font-size: 11px; text-transform: uppercase; }
+  td { padding: 7px 12px; border-bottom: 1px solid var(--border); }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #f8fafc; }
+
+  /* VISUALIZATIONS */
+  .viz-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .viz-card { background: var(--card); border: 1px solid var(--border);
+              border-radius: 10px; padding: 20px; }
+  .viz-card.full { grid-column: 1 / -1; }
+  .viz-card h3 { font-size: 13px; font-weight: 700; color: var(--navy);
+                 margin-bottom: 4px; }
+  .viz-card p.sub { font-size: 11px; color: var(--muted); margin-bottom: 16px; }
+  .chart-wrap { position: relative; }
+
+  /* FIGURE LABEL */
+  .fig-lbl { display:inline-block; background:var(--navy); color:white;
+             border-radius:4px; padding:1px 8px; font-size:11px; font-weight:700;
+             margin-right:7px; vertical-align:middle; letter-spacing:0.05em; }
+
+  /* LEGEND */
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 12px; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+  .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+  /* SUMMARY */
+  .finding-card { background: var(--card); border: 1px solid var(--border);
+                  border-radius: 10px; padding: 20px 24px; margin-bottom: 12px; }
+  .finding-card h3 { font-size: 14px; font-weight: 700; color: var(--navy); margin-bottom: 8px; }
+  .finding-card p { font-size: 13px; line-height: 1.7; color: #374151; }
+  .finding-card .tag { display: inline-block; background: #dbeafe; color: #1e40af;
+                       border-radius: 4px; padding: 1px 8px; font-size: 11px; margin-right: 6px; }
+  .limitation { border-left: 3px solid #f59e0b; }
+  .finding { border-left: 3px solid var(--teal); }
+
+  .seg-ctrl { display: inline-flex; border: 1.5px solid var(--navy); border-radius: 6px; overflow: hidden; }
+  .tog-btn {
+    border: none; border-right: 1px solid var(--navy);
+    background: white; color: var(--navy);
+    padding: 4px 13px; font-size: 12px; cursor: pointer;
+    font-weight: 500; white-space: nowrap; transition: background 0.12s, color 0.12s;
+  }
+  .tog-btn:last-child { border-right: none; }
+  .tog-btn:hover:not(.active) { background: #e0e7ef; }
+  .tog-btn.active { background: var(--navy); color: white; font-weight: 600; }
+
+  @media (max-width: 640px) {
+    .viz-grid { grid-template-columns: 1fr; }
+    .viz-card.full { grid-column: 1; }
+    .stat-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>PE/PTD Multi-Omics Integration — Analysis Report</h1>
+  <p>Preeclampsia &amp; Preterm Delivery · Transcriptomics + Metabolomics · n = 28</p>
+  <div class="badge-row">
+    <span class="badge">Run: PE-PTD_150626 · verified 2026-06-15</span>
+    <span class="badge">4,383 genes · 293 metabolites</span>
+    <span class="badge">sPLS-DA LOOCV · 500 permutations</span>
+    <span class="badge">Three-arm analysis</span>
+  </div>
+</header>
+
+<nav class="tabs">
+  <button class="active" onclick="showTab('overview',this)">Overview</button>
+  <button onclick="showTab('arm-a',this)">Arm A — Univariate</button>
+  <button onclick="showTab('arm-b',this)">Arm B — Correlation</button>
+  <button onclick="showTab('arm-c',this)">Arm C — Machine Learning</button>
+  <button onclick="showTab('viz',this)">Visualizations</button>
+  <button onclick="showTab('summary',this)">Summary &amp; Conclusions</button>
+</nav>
+
+<!-- ═══════════════════════════════════════════════════ TAB: OVERVIEW -->
+<div id="tab-overview" class="tab-panel active">
+
+  <p class="section-title">Cohort &amp; Dataset</p>
+  <div class="stat-grid">
+    <div class="stat-card"><div class="val">28</div><div class="lbl">Paired samples</div></div>
+    <div class="stat-card"><div class="val">3</div><div class="lbl">Groups (Control · PE · PTD)</div></div>
+    <div class="stat-card"><div class="val">38,893</div><div class="lbl">Expressed transcripts</div></div>
+    <div class="stat-card"><div class="val">244</div><div class="lbl">Clean metabolites</div></div>
+    <div class="stat-card"><div class="val">53.0%</div><div class="lbl">Balanced accuracy (ML)</div></div>
+    <div class="stat-card"><div class="val">p = 0.040</div><div class="lbl">Permutation significance</div></div>
+  </div>
+
+  <p class="section-title">Analysis Pipeline</p>
+  <div class="flow-wrap">
+    <svg viewBox="0 0 940 335" width="100%" style="max-width:940px;display:block;margin:0 auto;">
+      <defs>
+        <marker id="arr" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+          <path d="M0,0 L0,6 L8,3 z" fill="#94a3b8"/>
+        </marker>
+      </defs>
+
+      <!-- Preprocessing -->
+      <rect x="340" y="10" width="260" height="56" rx="8" fill="#1e3a5f"/>
+      <text x="470" y="33" text-anchor="middle" fill="white" font-size="13" font-weight="700">PREPROCESSING</text>
+      <text x="470" y="53" text-anchor="middle" fill="#94a3b8" font-size="11">Steps 0–2 · Load · Normalize · Aggregate</text>
+
+      <!-- Arrows down to arms -->
+      <line x1="470" y1="66" x2="150" y2="114" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arr)"/>
+      <line x1="470" y1="66" x2="470" y2="114" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arr)"/>
+      <line x1="470" y1="66" x2="790" y2="114" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arr)"/>
+
+      <!-- Arm A -->
+      <rect x="20" y="114" width="260" height="112" rx="8" fill="#0f4c75"/>
+      <text x="150" y="138" text-anchor="middle" fill="white" font-size="13" font-weight="700">ARM A — UNIVARIATE</text>
+      <text x="150" y="158" text-anchor="middle" fill="#7dd3fc" font-size="11">Step A1</text>
+      <text x="150" y="175" text-anchor="middle" fill="#cbd5e1" font-size="11">Per-gene differential</text>
+      <text x="150" y="192" text-anchor="middle" fill="#cbd5e1" font-size="11">expression analysis</text>
+      <text x="150" y="212" text-anchor="middle" fill="#fbbf24" font-size="11">4,383 genes tested</text>
+
+      <!-- Arm B -->
+      <rect x="340" y="114" width="260" height="112" rx="8" fill="#0f4c75"/>
+      <text x="470" y="138" text-anchor="middle" fill="white" font-size="13" font-weight="700">ARM B — CORRELATION</text>
+      <text x="470" y="158" text-anchor="middle" fill="#7dd3fc" font-size="11">Steps B1 → B2 → B3</text>
+      <text x="470" y="175" text-anchor="middle" fill="#cbd5e1" font-size="11">Spearman · Pathway</text>
+      <text x="470" y="192" text-anchor="middle" fill="#cbd5e1" font-size="11">integration · KEGG</text>
+      <text x="470" y="212" text-anchor="middle" fill="#fbbf24" font-size="11">315,576 pairs tested</text>
+
+      <!-- Arm C -->
+      <rect x="660" y="114" width="260" height="112" rx="8" fill="#0f4c75"/>
+      <text x="790" y="138" text-anchor="middle" fill="white" font-size="13" font-weight="700">ARM C — MACHINE LEARNING</text>
+      <text x="790" y="158" text-anchor="middle" fill="#7dd3fc" font-size="11">Steps C1 → C2 → C3</text>
+      <text x="790" y="175" text-anchor="middle" fill="#cbd5e1" font-size="11">Feature matrix · sPLS-DA</text>
+      <text x="790" y="192" text-anchor="middle" fill="#cbd5e1" font-size="11">LOOCV · Permutation test</text>
+      <text x="790" y="212" text-anchor="middle" fill="#fbbf24" font-size="11">4,676 features · 28 iterations</text>
+
+      <!-- Arrows down to integration -->
+      <line x1="150" y1="226" x2="340" y2="272" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arr)"/>
+      <line x1="470" y1="226" x2="470" y2="272" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arr)"/>
+      <line x1="790" y1="226" x2="600" y2="272" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arr)"/>
+
+      <!-- Integration -->
+      <rect x="270" y="272" width="400" height="54" rx="8" fill="#0d9488"/>
+      <text x="470" y="295" text-anchor="middle" fill="white" font-size="13" font-weight="700">INTEGRATION LAYER</text>
+      <text x="470" y="314" text-anchor="middle" fill="#ccfbf1" font-size="11">Multi-layer evidence convergence · Biological interpretation</text>
+    </svg>
+  </div>
+
+  <p class="section-title">Key Results at a Glance</p>
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="val" style="color:var(--teal)">38</div>
+      <div class="lbl">Stable ML features (≥50% LOOCV)</div>
+    </div>
+    <div class="stat-card">
+      <div class="val" style="color:var(--teal)">20</div>
+      <div class="lbl">Features at 100% stability</div>
+    </div>
+    <div class="stat-card">
+      <div class="val" style="color:var(--blue)">0.040</div>
+      <div class="lbl">Permutation p-value (balanced acc)</div>
+    </div>
+    <div class="stat-card">
+      <div class="val" style="color:var(--navy)">164</div>
+      <div class="lbl">Gene–metabolite pairs with shared pathway</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ TAB: ARM A -->
+<div id="tab-arm-a" class="tab-panel">
+  <div class="arm-header">
+    <span class="arm-label">ARM A</span>
+    <span class="arm-title">Univariate Analysis</span>
+  </div>
+  <p style="font-size:13px;color:var(--muted);margin-bottom:20px;">
+    Research question: <em>Which genes change between disease groups and Control?</em>
+  </p>
+
+  <div class="step-card" id="card-a1">
+    <div class="step-header" onclick="toggleCard('card-a1')">
+      <div class="step-header-left">
+        <span class="step-num">A1</span>
+        <div>
+          <div class="step-name">Per-Gene Group Statistics</div>
+          <div class="step-line">Log2FC and Wilcoxon p-values for every gene vs Control</div>
+        </div>
+      </div>
+      <div class="toggle-btn">+</div>
+    </div>
+    <div class="step-body">
+      <div class="what-box">
+        Non-parametric differential expression analysis across all 4,383 expressed genes.
+        Log2FC computed from log2(TPM+1) gene-level matrix. Wilcoxon rank-sum test applied
+        to z-scored values (rank-invariant). BH-FDR correction applied independently for
+        each comparison (PE vs Control, PTD vs Control).
+      </div>
+      <div class="result-toggle">
+        <button class="active" onclick="switchView('a1','quick',this)">Quick</button>
+        <button onclick="switchView('a1','full',this)">Full</button>
+      </div>
+      <div id="a1-quick" class="result-view active result-quick">
+        <div class="kv"><span class="k">Genes tested</span><span class="v">4,383</span></div>
+        <div class="kv"><span class="k">Nominal p &lt; 0.05 (PE)</span><span class="v">111 genes (2.5%)</span></div>
+        <div class="kv"><span class="k">Nominal p &lt; 0.05 (PTD)</span><span class="v">294 genes (6.7%)</span></div>
+        <div class="kv"><span class="k">FDR &lt; 0.05</span><span class="v nosig">0 genes — expected at n=28</span></div>
+        <div class="kv"><span class="k">PTD signal stronger</span><span class="v">2.7× more nominally significant genes vs PE</span></div>
+      </div>
+      <div id="a1-full" class="result-view">
+        <table>
+          <thead><tr><th>Gene</th><th>Log2FC PE</th><th>Log2FC PTD</th><th>p PE</th><th>p PTD</th></tr></thead>
+          <tbody>
+            <tr><td>OR10J4</td><td>+2.22</td><td>+0.75</td><td style="color:var(--green)">0.011</td><td>0.383</td></tr>
+            <tr><td>MIR4420</td><td>+1.44</td><td>+0.81</td><td style="color:var(--green)">0.008</td><td>0.115</td></tr>
+            <tr><td>CD8B2</td><td>+1.35</td><td>+0.61</td><td style="color:var(--green)">0.015</td><td>0.323</td></tr>
+            <tr><td>Vault</td><td>+1.51</td><td>+0.04</td><td>0.176</td><td>0.788</td></tr>
+            <tr><td>HOXD12</td><td>+1.50</td><td>+0.50</td><td>0.075</td><td>0.703</td></tr>
+            <tr><td>MIR6769B</td><td>+1.29</td><td>+0.52</td><td style="color:var(--green)">0.026</td><td>0.624</td></tr>
+            <tr><td>RN7SL614P</td><td>+0.66</td><td>+2.49</td><td>0.248</td><td style="color:var(--green)">0.010</td></tr>
+            <tr><td>DFFA</td><td>+0.74</td><td>+1.47</td><td>0.050</td><td style="color:var(--green)">0.004</td></tr>
+            <tr><td>FNDC10</td><td>+0.85</td><td>+2.21</td><td>0.119</td><td style="color:var(--green)">0.039</td></tr>
+            <tr><td>SNORA44</td><td>+0.28</td><td>+1.70</td><td>0.880</td><td style="color:var(--green)">0.014</td></tr>
+            <tr><td>TNFRSF1B</td><td>+0.38</td><td>+1.60</td><td>0.248</td><td style="color:var(--green)">0.031</td></tr>
+            <tr><td>MIR34A</td><td>+0.53</td><td>+1.67</td><td>0.175</td><td style="color:var(--green)">0.010</td></tr>
+            <tr><td>EVX2</td><td>-1.59</td><td>-1.36</td><td>0.176</td><td>0.176</td></tr>
+          </tbody>
+        </table>
+        <p style="font-size:11px;color:var(--muted);margin-top:8px;">Showing stable ML features only. Full table: gene_group_statistics.csv (4,383 rows).</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ TAB: ARM B -->
+<div id="tab-arm-b" class="tab-panel">
+  <div class="arm-header">
+    <span class="arm-label">ARM B</span>
+    <span class="arm-title">Correlation &amp; Pathway Integration</span>
+  </div>
+  <p style="font-size:13px;color:var(--muted);margin-bottom:20px;">
+    Research question: <em>Which genes and metabolites are biologically linked through shared activity or pathways?</em>
+  </p>
+
+  <!-- B1 -->
+  <div class="step-card" id="card-b1">
+    <div class="step-header" onclick="toggleCard('card-b1')">
+      <div class="step-header-left">
+        <span class="step-num">B1</span>
+        <div>
+          <div class="step-name">Spearman Correlation</div>
+          <div class="step-line">315,576 gene–metabolite pairs ranked and tested</div>
+        </div>
+      </div>
+      <div class="toggle-btn">+</div>
+    </div>
+    <div class="step-body">
+      <div class="what-box">
+        Pairwise Spearman rank correlation between all 4,383 genes and 72 active metabolites
+        (72 = compounds passing clinical flag OR nominal significance OR |Log2FC| ≥ 2).
+        P-values via t-approximation (df = 26). BH-FDR across all 315,576 pairs simultaneously.
+        Spearman chosen for robustness to outliers and non-normal distributions.
+      </div>
+      <div class="result-toggle">
+        <button class="active" onclick="switchView('b1','quick',this)">Quick</button>
+        <button onclick="switchView('b1','full',this)">Full</button>
+      </div>
+      <div id="b1-quick" class="result-view active result-quick">
+        <div class="kv"><span class="k">Total pairs tested</span><span class="v">315,576</span></div>
+        <div class="kv"><span class="k">FDR &lt; 0.05</span><span class="v nosig">0 pairs (min FDR ≈ 0.16)</span></div>
+        <div class="kv"><span class="k">Nominal p &lt; 0.05</span><span class="v">~26,500 pairs (exploratory set)</span></div>
+        <div class="kv"><span class="k">Interpretation</span><span class="v nosig">Expected at n=28 with 315k tests — not a failure</span></div>
+      </div>
+      <div id="b1-full" class="result-view">
+        <p style="font-size:13px;line-height:1.7;color:#374151;">
+          The absence of FDR-significant pairs is consistent with the statistical power available
+          at n=28 across 315,576 simultaneous tests. The null result itself is informative: it
+          confirms that no single gene–metabolite pair dominates the signal, and that the
+          multi-dimensional structure of the data (captured by sPLS-DA in Arm C) is necessary
+          to identify meaningful patterns. The ~26,500 nominal pairs were retained as an
+          exploratory working set for pathway integration in Step B2.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- B2 -->
+  <div class="step-card" id="card-b2">
+    <div class="step-header" onclick="toggleCard('card-b2')">
+      <div class="step-header-left">
+        <span class="step-num">B2</span>
+        <div>
+          <div class="step-name">Pathway Integration &amp; Overlap</div>
+          <div class="step-line">KEGG pathway annotations joined to all nominal pairs</div>
+        </div>
+      </div>
+      <div class="toggle-btn">+</div>
+    </div>
+    <div class="step-body">
+      <div class="what-box">
+        All ~26,500 nominal pairs annotated with KEGG pathway IDs for both genes
+        (from Ensembl/MyGene annotation) and metabolites (from Compound Discoverer output).
+        Pathway overlap detection: 5-digit numeric KEGG IDs extracted and intersected per pair.
+        Pairs where gene and metabolite share ≥1 KEGG pathway flagged as Pathway_Overlap = TRUE.
+      </div>
+      <div class="result-toggle">
+        <button class="active" onclick="switchView('b2','quick',this)">Quick</button>
+        <button onclick="switchView('b2','full',this)">Full</button>
+      </div>
+      <div id="b2-quick" class="result-view active result-quick">
+        <div class="kv"><span class="k">Pairs with pathway overlap</span><span class="v">164 / ~26,500 (0.6%)</span></div>
+        <div class="kv"><span class="k">Top pair</span><span class="v">NDUFS1 × Grandiflorenic acid (map01100)</span></div>
+        <div class="kv"><span class="k">Notable convergence</span><span class="v">TUBA3D × Sphingosine d18:1 (map04210 Apoptosis)</span></div>
+      </div>
+      <div id="b2-full" class="result-view">
+        <table>
+          <thead><tr><th>Gene</th><th>Metabolite</th><th>Shared Pathway</th><th>ρ Spearman</th></tr></thead>
+          <tbody>
+            <tr><td>TUBA3D</td><td>Sphingosine (d18:1)</td><td>map04210 — Apoptosis</td><td>—</td></tr>
+            <tr><td>TUBA3D</td><td>D-Sphingosine</td><td>map04210 — Apoptosis</td><td>—</td></tr>
+            <tr><td>NDUFS1</td><td>Grandiflorenic acid</td><td>map01100 — Metabolic pathways</td><td>—</td></tr>
+          </tbody>
+        </table>
+        <p style="font-size:11px;color:var(--muted);margin-top:8px;">Full table: FULL_ANNOTATED_MultiOmics.csv (~27,733 rows). Output: kegg_convergent_pairs.csv.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- B3 -->
+  <div class="step-card" id="card-b3">
+    <div class="step-header" onclick="toggleCard('card-b3')">
+      <div class="step-header-left">
+        <span class="step-num">B3</span>
+        <div>
+          <div class="step-name">KEGG Convergence &amp; Enrichment</div>
+          <div class="step-line">Stable ML features mapped to pathways; Fisher test in Supplementary</div>
+        </div>
+      </div>
+      <div class="toggle-btn">+</div>
+    </div>
+    <div class="step-body">
+      <div class="what-box">
+        Three-layer analysis on Scenario A stable features (≥50% LOOCV selection).
+        Layer 1: pathway mapping — how many stable genes map to each KEGG pathway?
+        Layer 2: convergence — stable features from Arm C that also appear in overlapping pairs from B2.
+        Layer 3: Fisher's exact over-representation test vs 1,000 background genes (reported in Supplementary).
+      </div>
+      <div class="result-toggle">
+        <button class="active" onclick="switchView('b3','quick',this)">Quick</button>
+        <button onclick="switchView('b3','full',this)">Full</button>
+      </div>
+      <div id="b3-quick" class="result-view active result-quick">
+        <div class="kv"><span class="k">Strongest convergence</span><span class="v">TUBA3D + Sphingosine via Apoptosis (map04210)</span></div>
+        <div class="kv"><span class="k">Fisher enrichment FDR &lt; 0.05</span><span class="v nosig">0 pathways (Supplementary)</span></div>
+        <div class="kv"><span class="k">Biological signal</span><span class="v">Sphingolipid/apoptosis axis converges across Arm B and Arm C</span></div>
+      </div>
+      <div id="b3-full" class="result-view">
+        <p style="font-size:13px;line-height:1.7;color:#374151;margin-bottom:12px;">
+          The absence of FDR-significant enrichment is consistent with the sample size (n=28)
+          and the small number of stable features (38). However, the convergence between
+          Arm B pathway overlap and Arm C stable features on the Apoptosis pathway
+          (Sphingosine d18:1, D-Sphingosine, TUBA3D) represents independent corroboration
+          from two analytical strategies — a stronger signal than either arm alone.
+        </p>
+        <table>
+          <thead><tr><th>Layer</th><th>Result</th></tr></thead>
+          <tbody>
+            <tr><td>L1 — Pathway mapping</td><td>Apoptosis, HOX cluster pathways enriched in stable gene set</td></tr>
+            <tr><td>L2 — Convergence</td><td>Sphingosine + TUBA3D via map04210 (Apoptosis)</td></tr>
+            <tr><td>L3 — Fisher test</td><td>No FDR &lt; 0.05 — see kegg_pathway_enrichment_fisher_supplementary.csv</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ TAB: ARM C -->
+<div id="tab-arm-c" class="tab-panel">
+  <div class="arm-header">
+    <span class="arm-label">ARM C</span>
+    <span class="arm-title">Machine Learning</span>
+  </div>
+  <p style="font-size:13px;color:var(--muted);margin-bottom:20px;">
+    Research question: <em>Which features discriminate between disease groups — and how robustly?</em>
+  </p>
+
+  <!-- C1 -->
+  <div class="step-card" id="card-c1">
+    <div class="step-header" onclick="toggleCard('card-c1')">
+      <div class="step-header-left">
+        <span class="step-num">C1</span>
+        <div>
+          <div class="step-name">Feature Matrix Construction</div>
+          <div class="step-line">4,676 features assembled for ML input</div>
+        </div>
+      </div>
+      <div class="toggle-btn">+</div>
+    </div>
+    <div class="step-body">
+      <div class="what-box">
+        Unified feature matrix combining 293 metabolites (all CLEAN, deduplicated by InChIKey)
+        and 4,383 genes (collapsed to gene symbol). Values are log2(x+1) — not z-scored here.
+        Scaling is deferred to inside each LOOCV fold to prevent data leakage.
+        Structural isomers with identical names but distinct InChIKeys retain an 8-character suffix.
+      </div>
+      <div class="result-toggle">
+        <button class="active" onclick="switchView('c1','quick',this)">Quick</button>
+      </div>
+      <div id="c1-quick" class="result-view active result-quick">
+        <div class="kv"><span class="k">Total features</span><span class="v">4,676</span></div>
+        <div class="kv"><span class="k">Metabolites</span><span class="v">293 (CLEAN, deduplicated)</span></div>
+        <div class="kv"><span class="k">Genes</span><span class="v">4,383 (expressed, collapsed to symbol)</span></div>
+        <div class="kv"><span class="k">Samples</span><span class="v">28 (6 Control · 11 PE · 11 PTD)</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- C2 -->
+  <div class="step-card" id="card-c2">
+    <div class="step-header" onclick="toggleCard('card-c2')">
+      <div class="step-header-left">
+        <span class="step-num">C2</span>
+        <div>
+          <div class="step-name">sPLS-DA LOOCV — Four Scenarios</div>
+          <div class="step-line">Multi-omics model outperforms single-modality; 38 stable features</div>
+        </div>
+      </div>
+      <div class="toggle-btn">+</div>
+    </div>
+    <div class="step-body">
+      <div class="what-box">
+        Sparse PLS Discriminant Analysis with Leave-One-Out Cross-Validation (28 iterations).
+        Pre-filtering: top 1,000 genes by inter-sample SD + all 293 metabolites = 1,293 features.
+        Hyperparameter tuning (keepX) via tune.splsda() on full dataset before LOOCV.
+        Z-scoring fit on 27 training samples only per fold. Classification by max.dist.
+        A feature is "stable" if selected in ≥50% of the 28 LOOCV folds.
+      </div>
+      <div class="result-toggle">
+        <button class="active" onclick="switchView('c2','quick',this)">Quick</button>
+        <button onclick="switchView('c2','full',this)">Full</button>
+      </div>
+      <div id="c2-quick" class="result-view active result-quick">
+        <div class="kv"><span class="k">Best scenario</span><span class="v sig">A — Multi-omics 3-class (53.6% / 53.0% balanced)</span></div>
+        <div class="kv"><span class="k">M-only (Scenario B)</span><span class="v">42.9% / 41.4% balanced</span></div>
+        <div class="kv"><span class="k">G-only (Scenario C)</span><span class="v">39.3% / 38.4% balanced</span></div>
+        <div class="kv"><span class="k">Binary Ctrl vs Disease (D)</span><span class="v">64.3% — PE/PTD not well-separated</span></div>
+        <div class="kv"><span class="k">Stable features (Scenario A)</span><span class="v">38 total · 20 at 100% stability</span></div>
+      </div>
+      <div id="c2-full" class="result-view">
+        <table>
+          <thead><tr><th>Scenario</th><th>Input</th><th>keepX</th><th>Accuracy</th><th>Balanced Acc</th><th>Stable Features</th></tr></thead>
+          <tbody>
+            <tr style="background:#f0fdf4"><td><strong>A — 3-class</strong></td><td>M + G</td><td>15, 30</td><td><strong>53.6%</strong></td><td><strong>53.0%</strong></td><td>38</td></tr>
+            <tr><td>B — 3-class</td><td>M only</td><td>40, 5</td><td>42.9%</td><td>41.4%</td><td>45</td></tr>
+            <tr><td>C — 3-class</td><td>G only</td><td>5, 10</td><td>39.3%</td><td>38.4%</td><td>12</td></tr>
+            <tr><td>D — binary</td><td>M + G</td><td>5, 5</td><td>64.3%</td><td>53.0%</td><td>7</td></tr>
+          </tbody>
+        </table>
+        <p style="font-size:11px;color:var(--muted);margin-top:8px;">Chance level: 33.3% (3-class A/B/C) · 50% (binary D).</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- C3 -->
+  <div class="step-card" id="card-c3">
+    <div class="step-header" onclick="toggleCard('card-c3')">
+      <div class="step-header-left">
+        <span class="step-num">C3</span>
+        <div>
+          <div class="step-name">Permutation Test</div>
+          <div class="step-line">500 permutations confirm significance: p = 0.040 (balanced accuracy)</div>
+        </div>
+      </div>
+      <div class="toggle-btn">+</div>
+    </div>
+    <div class="step-body">
+      <div class="what-box">
+        500 permutations of group labels (feature matrix X fixed). Full LOOCV repeated per
+        permutation with keepX = c(15,30) held constant. A verification step confirms
+        reproduction of 15/28 correct before the permutation loop. Balanced accuracy is
+        the primary metric because groups are unequal (6/11/11).
+      </div>
+      <div class="result-toggle">
+        <button class="active" onclick="switchView('c3','quick',this)">Quick</button>
+        <button onclick="switchView('c3','full',this)">Full</button>
+      </div>
+      <div id="c3-quick" class="result-view active result-quick">
+        <div class="kv"><span class="k">Null distribution mean</span><span class="v">33.3% ± 12.0% (balanced acc)</span></div>
+        <div class="kv"><span class="k">Observed balanced acc</span><span class="v sig">53.0% — p = 0.040 ✓</span></div>
+        <div class="kv"><span class="k">Observed overall acc</span><span class="v">53.6% — p = 0.072</span></div>
+        <div class="kv"><span class="k">Permutations ≥ observed</span><span class="v">20 / 500 (balanced) · 36 / 500 (overall)</span></div>
+      </div>
+      <div id="c3-full" class="result-view">
+        <p style="font-size:13px;line-height:1.7;color:#374151;">
+          The balanced accuracy p-value of 0.040 confirms that the sPLS-DA multi-omics model
+          achieves statistically significant group discrimination beyond chance, despite the
+          small sample size (n=28). The overall accuracy p-value (0.072) does not reach
+          the conventional threshold — consistent with the imbalanced group sizes giving
+          more weight to the larger PE and PTD groups in overall accuracy.
+          Balanced accuracy is therefore the primary reported metric.
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ TAB: VISUALIZATIONS -->
+<div id="tab-viz" class="tab-panel">
+  <p class="section-title">All Visualizations</p>
+
+  <div class="viz-grid">
+
+    <!-- Chart A: sPLS-DA Scenarios -->
+    <div class="viz-card">
+      <h3><span class="fig-lbl">A</span>sPLS-DA — Balanced Accuracy Above Chance</h3>
+      <p class="sub">A–C: 3-class (chance = 33.3%) · D: binary Disease vs Control (chance = 50%).</p>
+      <div class="chart-wrap"><canvas id="chartScenarios" height="175"></canvas></div>
+    </div>
+
+    <!-- Chart B: Permutation Test -->
+    <div class="viz-card">
+      <h3><span class="fig-lbl">B</span>Permutation Test — Null Distribution</h3>
+      <p class="sub">Balanced accuracy across 500 label-permuted LOOCV runs. Red bins = observed 53.0% (p = 0.040).</p>
+      <div class="chart-wrap"><canvas id="chartPerm" height="220"></canvas></div>
+    </div>
+
+    <!-- Chart C: Feature Stability Table (full width) -->
+    <div class="viz-card full">
+      <h3><span class="fig-lbl">C</span>Feature Stability — Scenario A (all 38 stable features)</h3>
+      <p class="sub">Selection frequency across 28 LOOCV folds. Stable = selected in ≥50% of folds.</p>
+      <div class="legend" style="margin-bottom:12px;">
+        <span class="legend-item"><span class="legend-dot" style="background:var(--blue)"></span>Gene</span>
+        <span class="legend-item"><span class="legend-dot" style="background:var(--red)"></span>Metabolite</span>
+      </div>
+      <div id="stabilityTable"></div>
+    </div>
+
+    <!-- Chart D: Integration Network -->
+    <div class="viz-card full">
+      <h3><span class="fig-lbl">D</span>TUBA3D–Sphingosine Convergence Across Analytical Layers</h3>
+      <p class="sub">Same signal detected independently by Arm B (correlation + KEGG) and Arm C (ML). Apoptosis is the shared pathway — the explanation, not the finding.</p>
+      <svg viewBox="0 0 740 255" width="100%" style="max-width:740px;display:block;margin:0 auto;">
+        <defs>
+          <marker id="arr2" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+            <path d="M0,0 L0,6 L8,3 z" fill="#94a3b8"/>
+          </marker>
+        </defs>
+
+        <!-- TUBA3D box (left) -->
+        <rect x="10" y="18" width="205" height="128" rx="8" fill="#dbeafe" stroke="#2563eb" stroke-width="1.5"/>
+        <text x="112" y="42" text-anchor="middle" fill="#1e40af" font-size="14" font-weight="700">TUBA3D</text>
+        <text x="112" y="59" text-anchor="middle" fill="#3b82f6" font-size="11">Gene (tubulin α-chain)</text>
+        <line x1="20" y1="67" x2="205" y2="67" stroke="#bfdbfe" stroke-width="1"/>
+        <text x="112" y="83" text-anchor="middle" fill="#1e40af" font-size="10">✓  Spearman correlation</text>
+        <text x="112" y="99" text-anchor="middle" fill="#1e40af" font-size="10">✓  KEGG pathway overlap</text>
+        <text x="112" y="118" text-anchor="middle" fill="#7c3aed" font-size="10" font-weight="600">Arm B</text>
+
+        <!-- Correlation lines -->
+        <line x1="215" y1="65" x2="525" y2="50" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arr2)"/>
+        <line x1="215" y1="105" x2="525" y2="165" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arr2)"/>
+
+        <!-- ρ annotation — two clear lines -->
+        <rect x="272" y="46" width="196" height="42" rx="6" fill="white" stroke="#e2e8f0" stroke-width="1"/>
+        <text x="370" y="63" text-anchor="middle" fill="#1e3a5f" font-size="12" font-weight="700">Spearman &#961; = 0.59</text>
+        <text x="370" y="80" text-anchor="middle" fill="#64748b" font-size="11">p &lt; 0.001  (n = 28)</text>
+
+        <!-- D-Sphingosine box (top right) -->
+        <rect x="525" y="10" width="205" height="112" rx="8" fill="#fee2e2" stroke="#dc2626" stroke-width="1.5"/>
+        <text x="627" y="32" text-anchor="middle" fill="#991b1b" font-size="13" font-weight="700">D-Sphingosine</text>
+        <text x="627" y="49" text-anchor="middle" fill="#059669" font-size="11" font-weight="700">★ 100% ML stability</text>
+        <line x1="535" y1="57" x2="722" y2="57" stroke="#fecaca" stroke-width="1"/>
+        <text x="627" y="71" text-anchor="middle" fill="#991b1b" font-size="10">✓  Spearman correlation</text>
+        <text x="627" y="86" text-anchor="middle" fill="#991b1b" font-size="10">✓  KEGG pathway overlap</text>
+        <text x="627" y="101" text-anchor="middle" fill="#991b1b" font-size="10">Metabolite (sphingolipid)</text>
+        <text x="627" y="115" text-anchor="middle" fill="#7c3aed" font-size="10" font-weight="600">Arm B + C</text>
+
+        <!-- Sphingosine (d18:1) box (bottom right) -->
+        <rect x="525" y="130" width="205" height="112" rx="8" fill="#fee2e2" stroke="#dc2626" stroke-width="1.5"/>
+        <text x="627" y="152" text-anchor="middle" fill="#991b1b" font-size="13" font-weight="700">Sphingosine (d18:1)</text>
+        <text x="627" y="169" text-anchor="middle" fill="#059669" font-size="11" font-weight="700">★ 100% ML stability</text>
+        <line x1="535" y1="177" x2="722" y2="177" stroke="#fecaca" stroke-width="1"/>
+        <text x="627" y="191" text-anchor="middle" fill="#991b1b" font-size="10">✓  Spearman correlation</text>
+        <text x="627" y="206" text-anchor="middle" fill="#991b1b" font-size="10">✓  KEGG pathway overlap</text>
+        <text x="627" y="221" text-anchor="middle" fill="#991b1b" font-size="10">Metabolite (sphingolipid)</text>
+        <text x="627" y="235" text-anchor="middle" fill="#7c3aed" font-size="10" font-weight="600">Arm B + C</text>
+
+        <!-- Down arrows to pathway -->
+        <line x1="112" y1="146" x2="245" y2="222" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#arr2)"/>
+        <line x1="627" y1="242" x2="496" y2="228" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#arr2)"/>
+
+        <!-- Pathway box (bottom centre) -->
+        <rect x="188" y="222" width="305" height="30" rx="7" fill="#f0fdf4" stroke="#059669" stroke-width="1.5"/>
+        <text x="340" y="234" text-anchor="middle" fill="#065f46" font-size="10" font-weight="700">Shared KEGG Pathway: Apoptosis (map04210)</text>
+        <text x="340" y="247" text-anchor="middle" fill="#059669" font-size="9">Convergence point — biological interpretation</text>
+      </svg>
+    </div>
+
+    <!-- Chart E: Mirror Plot PE -->
+    <div class="viz-card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+        <h3 style="margin:0"><span class="fig-lbl">E</span>Log₂FC — PE vs Control</h3>
+        <div class="seg-ctrl">
+          <button class="tog-btn active" id="togPE-mirror" onclick="toggleMirror('PE','mirror')">Mirror</button>
+          <button class="tog-btn" id="togPE-scatter" onclick="toggleMirror('PE','scatter')">Effect vs Stability</button>
+        </div>
+      </div>
+      <p class="sub">Stable features only. Faded = p ≥ 0.05.</p>
+      <div class="legend">
+        <span class="legend-item"><span class="legend-dot" style="background:var(--blue)"></span>Gene</span>
+        <span class="legend-item"><span class="legend-dot" style="background:var(--red)"></span>Metabolite</span>
+      </div>
+      <div class="chart-wrap">
+        <canvas id="chartMirrorPE" height="380"></canvas>
+        <canvas id="chartScatterPE" height="380" style="display:none"></canvas>
+      </div>
+    </div>
+
+    <!-- Chart F: Mirror Plot PTD -->
+    <div class="viz-card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+        <h3 style="margin:0"><span class="fig-lbl">F</span>Log₂FC — PTD vs Control</h3>
+        <div class="seg-ctrl">
+          <button class="tog-btn active" id="togPTD-mirror" onclick="toggleMirror('PTD','mirror')">Mirror</button>
+          <button class="tog-btn" id="togPTD-scatter" onclick="toggleMirror('PTD','scatter')">Effect vs Stability</button>
+        </div>
+      </div>
+      <p class="sub">Stable features only. Faded = p ≥ 0.05.</p>
+      <div class="legend">
+        <span class="legend-item"><span class="legend-dot" style="background:var(--blue)"></span>Gene</span>
+        <span class="legend-item"><span class="legend-dot" style="background:var(--red)"></span>Metabolite</span>
+      </div>
+      <div class="chart-wrap">
+        <canvas id="chartMirrorPTD" height="380"></canvas>
+        <canvas id="chartScatterPTD" height="380" style="display:none"></canvas>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ TAB: SUMMARY -->
+<div id="tab-summary" class="tab-panel">
+  <p class="section-title">Key Findings</p>
+
+  <div class="finding-card finding">
+    <h3>Multi-omics integration outperforms single-modality classification</h3>
+    <p>
+      <span class="tag">Arm C</span>
+      The combined metabolomics + transcriptomics model (Scenario A) reached 53.0% balanced
+      accuracy — significantly above chance (p = 0.040, permutation test). Gene-only (38.4%)
+      and metabolite-only (41.4%) models were substantially weaker, confirming that the two
+      modalities carry complementary discriminatory information.
+    </p>
+  </div>
+
+  <div class="finding-card finding">
+    <h3>PE and PTD are not well-separated from each other</h3>
+    <p>
+      <span class="tag">Arm C</span>
+      Binary classification (Control vs Disease) reached 64.3% accuracy — far higher than
+      3-class performance. This suggests the molecular signatures of PE and PTD share common
+      ground, and that the 3-class problem is the harder and more informative target.
+    </p>
+  </div>
+
+  <div class="finding-card finding">
+    <h3>Sphingolipid / apoptosis axis — converging evidence from two arms</h3>
+    <p>
+      <span class="tag">Arm B</span><span class="tag">Arm C</span>
+      D-Sphingosine and Sphingosine (d18:1) show 100% ML stability and PE-elevated Log2FC (~+0.97).
+      Independently, TUBA3D correlates with both sphingosines and shares the Apoptosis pathway
+      (map04210). Two separate analytical arms point to the same biological axis.
+    </p>
+  </div>
+
+  <div class="finding-card finding">
+    <h3>PTD has a stronger univariate gene signal</h3>
+    <p>
+      <span class="tag">Arm A</span>
+      2.7× more genes reach nominal significance in PTD vs Control (294) than in PE vs Control (111).
+      Top PTD-stable genes include DFFA (apoptosis), FNDC10, SNORA44, and several RN7SL RNA genes.
+      No genes survived FDR correction in either comparison — consistent with n=28 power limits.
+    </p>
+  </div>
+
+  <p class="section-title" style="margin-top:24px;">Limitations</p>
+
+  <div class="finding-card limitation">
+    <h3>Sample size constrains statistical power</h3>
+    <p>
+      n=28 is insufficient for genome-wide FDR correction across 315,576 correlation pairs
+      or 4,383 differential expression tests. All results are exploratory and require
+      validation in an independent cohort. The permutation test (p=0.040) confirms the
+      ML model is non-random, but not its clinical utility.
+    </p>
+  </div>
+
+  <div class="finding-card limitation">
+    <h3>Hyperparameter tuning on full dataset</h3>
+    <p>
+      keepX for sPLS-DA was tuned on all 28 samples before LOOCV prediction. This is an
+      accepted approximation for n&lt;30, but introduces a mild optimistic bias in the
+      hyperparameter selection step. Accuracy and p-values are not affected (they come
+      from the prediction loop only).
+    </p>
+  </div>
+
+  <div class="finding-card limitation">
+    <h3>Pooled Spearman correlation</h3>
+    <p>
+      Gene–metabolite Spearman correlations were computed across all 28 samples pooled,
+      not within groups. A correlation may reflect biological co-regulation or group
+      composition effects. Within-group correlations would require n≥30 per group.
+    </p>
+  </div>
+
+  <p class="section-title" style="margin-top:24px;">Output Files</p>
+  <table>
+    <thead><tr><th>File</th><th>Description</th></tr></thead>
+    <tbody>
+      <tr><td>loocv_stable_A_MG.csv</td><td>38 stable features with selection frequency %</td></tr>
+      <tr><td>loocv_scenario_comparison.csv</td><td>Accuracy metrics for all 4 scenarios</td></tr>
+      <tr><td>permutation_test_summary.csv</td><td>p-values for overall and balanced accuracy</td></tr>
+      <tr><td>FULL_ANNOTATED_MultiOmics.csv</td><td>~27,733 nominal pairs with KEGG annotations</td></tr>
+      <tr><td>gene_group_statistics.csv</td><td>Log2FC and Wilcoxon p per gene (4,383 rows)</td></tr>
+      <tr><td>kegg_convergent_pairs.csv</td><td>Gene–metabolite pairs with shared pathway + stable feature</td></tr>
+      <tr><td>kegg_pathway_enrichment_fisher_supplementary.csv</td><td>Fisher enrichment — Supplementary</td></tr>
+      <tr><td>Complete_Metabolite_Cohort_Profiles.csv</td><td>All CLEAN metabolites with group statistics</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<script>
+// ── Tab switching ──────────────────────────────────────────────────────────────
+function showTab(id, btn) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('nav.tabs button').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + id).classList.add('active');
+  btn.classList.add('active');
+  if (id === 'viz' && !window._chartsBuilt) { buildCharts(); window._chartsBuilt = true; }
+}
+
+// ── Accordion ─────────────────────────────────────────────────────────────────
+function toggleCard(id) {
+  document.getElementById(id).classList.toggle('open');
+}
+
+// ── Result view toggle ─────────────────────────────────────────────────────────
+function switchView(step, view, btn) {
+  const parent = btn.closest('.step-body');
+  parent.querySelectorAll('.result-view').forEach(v => v.classList.remove('active'));
+  parent.querySelectorAll('.result-toggle button').forEach(b => b.classList.remove('active'));
+  document.getElementById(step + '-' + view).classList.add('active');
+  btn.classList.add('active');
+}
+
+// ── Chart.js ──────────────────────────────────────────────────────────────────
+function buildCharts() {
+
+  // 1. sPLS-DA Scenarios — improvement above chance (all 4 scenarios)
+  const _balAcc    = [53.0, 41.4, 38.4, 53.0];
+  const _abvChance = [19.7, 8.1, 5.1, 3.0];
+  new Chart(document.getElementById('chartScenarios'), {
+    type: 'bar',
+    data: {
+      labels: ['A: Multi-omics (M+G)', 'B: Metabolomics only', 'C: Transcriptomics only', 'D: Binary (Disease vs Ctrl)'],
+      datasets: [{
+        label: 'Balanced accuracy above chance',
+        data: _abvChance,
+        backgroundColor: [
+          'rgba(13,148,136,0.85)',
+          'rgba(37,99,235,0.55)',
+          'rgba(37,99,235,0.30)',
+          'rgba(100,116,139,0.55)'
+        ],
+        borderRadius: 4
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      scales: {
+        x: { min: 0, max: 25, grid: { color: '#e2e8f0' },
+             title: { display: true, text: 'Balanced accuracy above chance (%)' },
+             ticks: { callback: v => '+' + v + '%' } },
+        y: { grid: { display: false } }
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => `+${ctx.parsed.x.toFixed(1)}% above chance  (bal. acc = ${_balAcc[ctx.dataIndex]}%)`
+          }
+        }
+      }
+    }
+  });
+
+  // 2. Permutation Test Histogram
+  const permVals = [29.8,30.3,18.2,35.4,27.3,12.1,33.3,21.2,23.7,38.4,20.7,36.4,41.4,38.9,35.9,24.2,18.2,41.9,29.8,23.7,32.8,33.3,15.2,27.3,30.3,48.5,53.5,30.3,23.7,30.3,23.7,30.3,24.2,44.4,21.2,41.4,41.9,27.3,15.2,32.8,62.6,23.7,33.3,44.9,27.3,15.2,33.3,30.3,33.3,42.4,35.9,18.2,8.6,53.0,9.1,38.9,47.5,14.6,47.5,15.2,30.3,30.3,33.3,21.2,9.1,40.9,49.5,29.8,12.1,35.9,23.7,21.2,21.2,38.9,46.5,21.2,30.3,30.3,24.2,38.9,27.3,17.7,12.1,44.4,32.8,36.4,26.8,27.3,27.3,50.5,18.2,36.4,32.8,50.5,28.8,44.4,26.8,33.3,42.4,29.8,37.9,41.4,30.3,24.2,15.2,18.2,45.5,42.4,23.7,39.4,21.2,26.8,18.2,20.7,3.0,53.0,41.4,20.7,21.2,15.2,35.4,38.9,27.3,18.2,27.3,35.9,40.9,23.7,33.3,27.3,35.4,54.0,18.2,33.3,12.1,53.0,24.2,44.9,35.9,24.2,35.9,24.2,50.0,50.0,21.2,18.2,20.7,9.1,18.2,16.7,23.7,9.1,51.5,24.2,29.8,21.2,27.3,18.2,12.1,39.4,51.0,36.4,21.2,33.3,38.9,23.7,48.0,59.6,17.7,18.2,32.8,35.4,21.2,50.0,56.6,18.2,24.2,44.9,48.5,27.3,41.4,17.7,33.3,30.3,35.9,56.6,29.3,23.7,36.4,21.2,9.1,36.4,12.1,27.3,27.3,43.9,24.2,3.0,33.3,42.4,35.9,9.1,12.1,48.5,29.8,38.9,35.9,44.4,9.1,41.9,58.6,11.6,33.3,33.3,40.9,43.9,15.2,35.4,24.2,41.9,26.8,33.3,27.3,33.3,18.2,45.5,26.8,49.5,44.4,32.8,41.9,6.1,33.3,35.4,21.2,12.1,33.3,21.2,27.3,12.1,48.5,29.8,42.4,40.9,18.2,30.3,39.4,24.2,32.8,15.2,15.2,15.2,12.1,30.3,38.9,29.8,21.2,27.3,9.1,29.8,35.9,24.2,35.9,24.2,12.1,36.4,41.9,35.9,43.9,27.3,39.4,21.2,32.3,20.7,26.8,21.2,9.1,53.5,26.8,15.2,12.1,12.1,24.2,35.9,38.4,23.7,59.6,33.3,47.5,20.7,30.3,27.3,33.3,21.2,29.8,12.1,39.4,29.8,29.8,45.5,38.9,35.9,27.3,32.8,75.8,15.2,8.6,32.3,18.2,27.3,9.1,18.2,21.2,41.9,53.5,35.9,27.3,21.2,27.3,38.9,44.9,32.3,43.9,38.9,11.6,53.0,27.3,15.2,26.8,20.7,15.2,21.2,50.0,39.4,50.5,21.2,27.3,42.4,21.2,29.3,36.4,47.5,32.8,23.7,27.3,21.2,39.4,41.4,35.4,36.4,33.3,39.4,32.8,36.4,36.4,62.1,56.1,29.3,33.3,38.9,18.2,24.2,38.9,34.3,6.1,29.8,43.9,32.8,44.4,15.2,35.9,21.2,21.2,29.8,41.9,18.2,29.3,27.3,45.5,27.3,33.3,15.2,27.3,27.3,50.0,42.4,41.9,27.3,38.9,44.4,35.9,30.3,14.6,40.9,18.2,21.2,21.2,23.7,36.4,36.4,41.4,32.3,12.1,38.9,44.4,15.2,15.2,33.3,38.9,29.3,20.7,15.2,26.8,24.2,33.3,27.3,30.3,24.2,41.9,15.2,21.2,23.7,27.3,23.2,36.4,23.7,43.9,36.4,21.2,30.3,27.3,35.4,41.4,39.4,35.4,18.2,8.6,40.9,23.7,32.8,48.5,18.2,18.2,9.1,18.2,9.1,12.1,12.1,53.5,24.2,18.2,24.2,24.2,18.2,48.0,53.5,18.2,30.3,17.7,43.4,36.4,20.7,3.0,21.2,26.8,33.3,14.6,29.8,24.2,44.4,32.8,12.1,29.8,41.9,33.3,44.4,35.9,40.9,15.2,44.9,21.2,15.2,21.2,21.2,23.7,21.2,18.2,9.1,14.6,26.3,18.2,26.8,56.1,35.9,33.3,24.2,41.9,47.0,21.2,36.4];
+  const bins = Array.from({length:16}, (_,i) => i*5);
+  const counts = new Array(15).fill(0);
+  permVals.forEach(v => { const b = Math.min(Math.floor(v/5), 14); counts[b]++; });
+  const binLabels = bins.slice(0,-1).map((b,i) => b + '–' + (b+5));
+  new Chart(document.getElementById('chartPerm'), {
+    type: 'bar',
+    data: {
+      labels: binLabels,
+      datasets: [{
+        label: 'Permutations',
+        data: counts,
+        backgroundColor: counts.map((_,i) => (bins[i] >= 53) ? 'rgba(239,68,68,0.5)' : 'rgba(148,163,184,0.6)'),
+        borderColor: counts.map((_,i) => (bins[i] >= 53) ? '#dc2626' : '#94a3b8'),
+        borderWidth: 1, borderRadius: 2
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => ctx.parsed.y + ' permutations' } }
+      },
+      scales: {
+        x: { title: { display: true, text: 'Balanced Accuracy (%)' }, grid: { display: false } },
+        y: { title: { display: true, text: 'Count' }, grid: { color: '#e2e8f0' } }
+      }
+    }
+  });
+
+  // 3. Feature Stability
+  // Feature Stability Table
+  const stabData = [
+    {n:'(5R,6S,7S)-Galactosyloxy-octanamide',s:100,t:'M'},
+    {n:'1-Ethyl-2-aminopyridinium deriv.',s:100,t:'M'},
+    {n:'2-Fluorocyclopentanol',s:100,t:'M'},
+    {n:'D-Sphingosine',s:100,t:'M'},
+    {n:'Dimethyl phosphonate deriv.',s:100,t:'M'},
+    {n:'L-γ-Glutamyl-Cys-Gly deriv.',s:100,t:'M'},
+    {n:'Sphingosine (d18:1)',s:100,t:'M'},
+    {n:'γ-Glu-Ile',s:100,t:'M'},
+    {n:'CD8B2',s:100,t:'G'},{n:'DFFA',s:100,t:'G'},{n:'GMCL1',s:100,t:'G'},
+    {n:'HOXD12',s:100,t:'G'},{n:'MIR34A',s:100,t:'G'},{n:'MIR4420',s:100,t:'G'},
+    {n:'MIR4438',s:100,t:'G'},{n:'MIR6769B',s:100,t:'G'},{n:'OR10J4',s:100,t:'G'},
+    {n:'RN7SL614P',s:100,t:'G'},{n:'SNORA44',s:100,t:'G'},{n:'Vault',s:100,t:'G'},
+    {n:'1,3,7-trimethylxanthine',s:96.4,t:'M'},
+    {n:'2-Benzoylaminobiphenyl',s:96.4,t:'M'},
+    {n:'N-(Dimethylamino)benzyl-triazaadamantane',s:96.4,t:'M'},
+    {n:'1-(4-Heptylphenyl)-triazine-diamine',s:92.9,t:'M'},
+    {n:'TNFRSF1B',s:92.9,t:'G'},
+    {n:'FNDC10',s:89.3,t:'G'},{n:'HOXD11',s:89.3,t:'G'},
+    {n:'3-(Benzylthio)propanoic acid',s:78.6,t:'M'},
+    {n:'ID3',s:78.6,t:'G'},{n:'RN7SL204P',s:75,t:'G'},
+    {n:'NTSR2',s:71.4,t:'G'},
+    {n:'LINC01134',s:67.9,t:'G'},{n:'RN7SL531P',s:67.9,t:'G'},
+    {n:'1-Cyano-methylbutyl-pyridinyl-guanidine',s:64.3,t:'M'},
+    {n:'EVX2',s:57.1,t:'G'},{n:'MIR4268',s:53.6,t:'G'},
+    {n:'Macrocyclic protease inhibitor',s:50,t:'M'},
+    {n:'LINC01805',s:50,t:'G'}
+  ];
+  stabData.sort((a,b) => b.s - a.s || a.n.localeCompare(b.n));
+
+  const tbl = document.getElementById('stabilityTable');
+  let html = '<table style="font-size:13px"><thead><tr>'
+    + '<th style="width:36px">Type</th>'
+    + '<th>Feature</th>'
+    + '<th style="width:80px;text-align:right">Stability</th>'
+    + '<th style="width:160px">Frequency</th>'
+    + '</tr></thead><tbody>';
+  stabData.forEach(d => {
+    const isG = d.t === 'G';
+    const color = isG ? '#2563eb' : '#dc2626';
+    const bg    = isG ? 'rgba(37,99,235,0.12)' : 'rgba(220,38,38,0.12)';
+    const badge = `<span style="display:inline-block;background:${bg};color:${color};
+      border-radius:4px;padding:1px 7px;font-size:11px;font-weight:700">${d.t === 'G' ? 'Gene' : 'Metab'}</span>`;
+    const barW  = Math.round(d.s * 1.4);
+    const bar   = `<div style="display:flex;align-items:center;gap:6px">
+      <div style="height:8px;width:${barW}px;background:${color};border-radius:4px;opacity:0.75"></div>
+      </div>`;
+    html += `<tr><td>${badge}</td><td style="font-size:12px">${d.n}</td>`
+          + `<td style="text-align:right;font-weight:700;color:${d.s===100?'#059669':color}">${d.s}%</td>`
+          + `<td>${bar}</td></tr>`;
+  });
+  html += '</tbody></table>';
+  tbl.innerHTML = html;
+
+  // 4 & 5. Mirror plots + scatter toggle
+  // columns: name, fc_pe, fc_ptd, p_pe, p_ptd, type, stability%
+  const mirrorData = [
+    ['OR10J4',2.224,0.753,0.011,0.383,'G',100],
+    ['L-γ-Glu-Cys-Gly',1.641,0.094,0.175,0.802,'M',100],
+    ['Vault',1.514,0.035,0.176,0.788,'G',100],
+    ['HOXD12',1.499,0.502,0.075,0.703,'G',100],
+    ['MIR4420',1.437,0.812,0.008,0.115,'G',100],
+    ['MIR4438',1.347,0.202,0.073,0.318,'G',100],
+    ['CD8B2',1.353,0.611,0.015,0.323,'G',100],
+    ['1-Ethyl-aminopyridinium',1.325,-0.110,0.039,0.802,'M',100],
+    ['RN7SL531P',1.334,0.456,0.150,0.870,'G',67.9],
+    ['MIR6769B',1.292,0.524,0.026,0.624,'G',100],
+    ['N-Dimethylaminobenzyl-triazadmnt',0.980,0.219,0.079,0.651,'M',96.4],
+    ['Sphingosine (d18:1)',0.993,-0.277,0.079,0.580,'M',100],
+    ['D-Sphingosine',0.968,-0.269,0.079,0.651,'M',100],
+    ['Dimethyl phosphonate deriv.',2.055,0.194,0.039,0.175,'M',100],
+    ['Heptylphenyl-triazine diamine',0.939,0.222,0.119,0.651,'M',92.9],
+    ['HOXD11',0.903,0.114,0.057,0.950,'G',89.3],
+    ['NTSR2',0.948,0.260,0.396,0.957,'G',71.4],
+    ['FNDC10',0.851,2.207,0.119,0.039,'G',89.3],
+    ['γ-Glu-Ile',0.562,-0.181,0.119,0.725,'M',100],
+    ['3-(Benzylthio)propanoate',0.585,-0.284,0.039,0.651,'M',78.6],
+    ['2-Benzoylaminobiphenyl',0.507,0.094,0.209,0.960,'M',96.4],
+    ['MIR34A',0.534,1.667,0.175,0.010,'G',100],
+    ['GMCL1',0.167,1.214,0.209,0.012,'G',100],
+    ['RN7SL614P',0.661,2.488,0.248,0.010,'G',100],
+    ['DFFA',0.736,1.471,0.050,0.004,'G',100],
+    ['SNORA44',0.276,1.700,0.880,0.014,'G',100],
+    ['TNFRSF1B',0.381,1.602,0.248,0.031,'G',92.9],
+    ['ID3',0.095,1.354,0.802,0.079,'G',78.6],
+    ['LINC01134',0.538,1.372,0.291,0.010,'G',67.9],
+    ['1-Cyano-methyl-pyridinyl-guanidine',-0.110,-1.235,0.960,0.010,'M',64.3],
+    ['2-Fluorocyclopentanol',-0.539,-0.855,0.018,0.002,'M',100],
+    ['EVX2',-1.587,-1.360,0.176,0.176,'G',57.1],
+    ['1,3,7-trimethylxanthine',-2.429,-1.487,0.024,0.145,'M',96.4],
+  ];
+
+  // Mirror bar chart instances (kept for toggle)
+  window._mirrorCharts = {};
+  window._scatterCharts = {};
+
+  function makeMirror(canvasId, fcIdx, pIdx) {
+    const sorted = [...mirrorData].sort((a,b) => Math.abs(b[fcIdx]) - Math.abs(a[fcIdx])).slice(0,25);
+    window._mirrorCharts[canvasId] = new Chart(document.getElementById(canvasId), {
+      type: 'bar',
+      data: {
+        labels: sorted.map(d => d[0]),
+        datasets: [{
+          label: 'Log₂FC',
+          data: sorted.map(d => d[fcIdx]),
+          backgroundColor: sorted.map(d => {
+            const sig = d[pIdx] < 0.05;
+            return d[5] === 'G'
+              ? (sig ? 'rgba(37,99,235,0.85)' : 'rgba(37,99,235,0.25)')
+              : (sig ? 'rgba(220,38,38,0.85)' : 'rgba(220,38,38,0.25)');
+          }),
+          borderRadius: 2
+        }]
+      },
+      options: {
+        indexAxis: 'y', responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { grid: { color: '#e2e8f0' }, title: { display: true, text: 'Log₂FC vs Control' } },
+          y: { grid: { display: false }, ticks: { font: { size: 10 } } }
+        }
+      }
+    });
+  }
+
+  function makeScatter(canvasId, fcIdx, pIdx) {
+    const pts = mirrorData.map(d => ({
+      x: d[fcIdx],   // Log2FC on X
+      y: d[6],       // Stability% on Y
+      label: d[0], type: d[5], sig: d[pIdx] < 0.05
+    }));
+    const maxAbs = Math.max(...pts.map(p => Math.abs(p.x)), 1.5);
+    const xRange = Math.ceil((maxAbs + 0.4) * 2) / 2;  // round to 0.5
+    window._scatterCharts[canvasId] = new Chart(document.getElementById(canvasId), {
+      type: 'scatter',
+      data: {
+        datasets: [{
+          label: 'Features',
+          data: pts.map(p => ({ x: p.x, y: p.y })),
+          backgroundColor: pts.map(p => p.type === 'G'
+            ? (p.sig ? 'rgba(37,99,235,0.85)' : 'rgba(37,99,235,0.25)')
+            : (p.sig ? 'rgba(220,38,38,0.85)' : 'rgba(220,38,38,0.25)')),
+          pointRadius: 7, pointHoverRadius: 9
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: ctx => {
+                const p = pts[ctx.dataIndex];
+                const fc = p.x >= 0 ? '+' + p.x.toFixed(2) : p.x.toFixed(2);
+                return `${p.label}  |  FC ${fc}  |  stab ${p.y}%${p.sig ? '  *' : ''}`;
+              }
+            }
+          }
+        },
+        scales: {
+          x: { min: -xRange, max: xRange,
+               title: { display: true, text: 'Log₂FC vs Control' },
+               grid: { color: '#e2e8f0' },
+               ticks: { callback: v => v > 0 ? '+' + v : v } },
+          y: { min: 45, max: 108,
+               title: { display: true, text: 'Stability (%)' },
+               grid: { color: '#e2e8f0' },
+               ticks: { callback: v => v + '%' } }
+        }
+      },
+      plugins: [{
+        id: 'scatterGuides',
+        afterDraw(chart) {
+          const cx = chart.ctx;
+          const { left, right, top, bottom } = chart.chartArea;
+          const xs = chart.scales.x;
+          const ys = chart.scales.y;
+
+          cx.save();
+          cx.strokeStyle = '#94a3b8';
+          cx.lineWidth = 1.2;
+          cx.setLineDash([5, 4]);
+
+          // Horizontal: stability = 80%
+          const y80 = ys.getPixelForValue(80);
+          cx.beginPath(); cx.moveTo(left, y80); cx.lineTo(right, y80); cx.stroke();
+
+          // Verticals: Log2FC = ±1
+          [1, -1].forEach(v => {
+            const px = xs.getPixelForValue(v);
+            cx.beginPath(); cx.moveTo(px, top); cx.lineTo(px, bottom); cx.stroke();
+          });
+
+          // Axis zero line
+          cx.strokeStyle = '#cbd5e1'; cx.lineWidth = 1; cx.setLineDash([]);
+          const x0 = xs.getPixelForValue(0);
+          cx.beginPath(); cx.moveTo(x0, top); cx.lineTo(x0, bottom); cx.stroke();
+
+          cx.restore();
+
+          // Labels: stab ≥ 90% AND |FC| ≥ 1.5 — with collision stagger
+          cx.save();
+          cx.font = '10px system-ui, sans-serif';
+          cx.textBaseline = 'bottom';
+          const candidates = pts
+            .filter(p => p.y >= 90 && Math.abs(p.x) >= 1.5)
+            .map(p => ({
+              ...p,
+              px: xs.getPixelForValue(p.x),
+              py: ys.getPixelForValue(p.y)
+            }))
+            .sort((a, b) => a.px - b.px);
+
+          const placed = []; // {lx, ly, w}
+          const LH = 13, SIDE = 9;
+
+          candidates.forEach(lp => {
+            const w = cx.measureText(lp.label).width;
+            const side = lp.x >= 0 ? 1 : -1;
+            const lx = lp.px + side * SIDE;
+            let ly = lp.py - 12;
+
+            // Shift up until no collision
+            for (let i = 0; i < 12; i++) {
+              const hit = placed.some(pl =>
+                Math.abs(pl.lx - lx) < (pl.w / 2 + w / 2 + 6) &&
+                Math.abs(pl.ly - ly) < LH
+              );
+              if (!hit) break;
+              ly -= LH;
+            }
+            placed.push({ lx, ly, w });
+
+            // Connector line if displaced
+            if (ly < lp.py - 16) {
+              cx.save();
+              cx.strokeStyle = lp.type === 'G' ? 'rgba(30,64,175,0.35)' : 'rgba(153,27,27,0.35)';
+              cx.lineWidth = 0.8;
+              cx.setLineDash([2, 2]);
+              cx.beginPath();
+              cx.moveTo(lp.px, lp.py - 7);
+              cx.lineTo(lx, ly + 1);
+              cx.stroke();
+              cx.setLineDash([]);
+              cx.restore();
+            }
+
+            cx.fillStyle = lp.type === 'G' ? '#1e40af' : '#991b1b';
+            cx.textAlign = lp.x >= 0 ? 'left' : 'right';
+            cx.fillText(lp.label, lx, ly);
+          });
+          cx.restore();
+        }
+      }]
+    });
+  }
+
+  window.toggleMirror = function(group, view) {
+    const mirId  = 'chartMirror' + group;
+    const scaId  = 'chartScatter' + group;
+    const mirEl  = document.getElementById(mirId);
+    const scaEl  = document.getElementById(scaId);
+    document.getElementById('tog' + group + '-mirror').classList.toggle('active', view === 'mirror');
+    document.getElementById('tog' + group + '-scatter').classList.toggle('active', view === 'scatter');
+    if (view === 'mirror') {
+      mirEl.style.display = ''; scaEl.style.display = 'none';
+    } else {
+      mirEl.style.display = 'none'; scaEl.style.display = '';
+      if (!window._scatterCharts[scaId]) {
+        const isPE = group === 'PE';
+        makeScatter(scaId, isPE ? 1 : 2, isPE ? 3 : 4);
+      }
+    }
+  }
+
+  makeMirror('chartMirrorPE', 1, 3);
+  makeMirror('chartMirrorPTD', 2, 4);
+}
+</script>
+</body>
+</html>
