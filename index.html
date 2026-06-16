@@ -135,6 +135,21 @@
   .viz-card p.sub { font-size: 11px; color: var(--muted); margin-bottom: 16px; }
   .chart-wrap { position: relative; }
 
+  /* VOLCANO MODAL */
+  #volcModal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.72);
+               z-index:9999; padding:20px; box-sizing:border-box; }
+  #volcModalInner { background:#fff; border-radius:12px; height:100%;
+                    display:flex; flex-direction:column; padding:18px 20px;
+                    max-width:1280px; margin:0 auto; box-shadow:0 8px 40px rgba(0,0,0,0.4); }
+  #volcModalHeader { display:flex; align-items:center; justify-content:space-between;
+                     margin-bottom:10px; flex-shrink:0; }
+  #volcModalTitle { font-size:14px; font-weight:700; color:var(--navy); }
+  #volcModalClose { background:none; border:1px solid #cbd5e1; border-radius:6px;
+                    padding:4px 10px; cursor:pointer; font-size:16px; color:#64748b;
+                    line-height:1; }
+  #volcModalClose:hover { background:#f1f5f9; }
+  #volcModalBody { flex:1; position:relative; min-height:0; }
+
   /* FIGURE LABEL */
   .fig-lbl { display:inline-block; background:var(--navy); color:white;
              border-radius:4px; padding:1px 8px; font-size:11px; font-weight:700;
@@ -1015,10 +1030,17 @@
   <p class="section-title">Volcano Plots — All 293 CLEAN Metabolites</p>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;">
     <div class="viz-card" style="margin:0;">
-      <h3 style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:4px;">
-        <span class="fig-lbl" style="font-size:10px;padding:2px 7px;">PE</span>
-        Preeclampsia vs Control
-      </h3>
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:4px;">
+        <h3 style="font-size:13px;font-weight:700;color:var(--navy);margin:0;">
+          <span class="fig-lbl" style="font-size:10px;padding:2px 7px;">PE</span>
+          Preeclampsia vs Control
+        </h3>
+        <button onclick="openVolcModal('volcPE','Preeclampsia vs Control')"
+                style="background:none;border:1px solid #cbd5e1;border-radius:5px;
+                       padding:3px 8px;cursor:pointer;font-size:11px;color:#64748b;
+                       white-space:nowrap;flex-shrink:0;margin-left:8px;"
+                title="Open full-screen">⛶ Expand</button>
+      </div>
       <p class="sub">x = Log₂FC · y = −log₁₀(p) · dashed lines: p = 0.05 and |FC| = 1.5</p>
       <div class="legend" style="margin-bottom:8px;">
         <span class="legend-item"><span class="legend-dot" style="background:#0d9488"></span>ACTIVE · Clnc_Endg_Cmpd</span>
@@ -1029,10 +1051,17 @@
       <div class="chart-wrap" style="height:320px;"><canvas id="volcPE"></canvas></div>
     </div>
     <div class="viz-card" style="margin:0;">
-      <h3 style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:4px;">
-        <span class="fig-lbl" style="font-size:10px;padding:2px 7px;">PTD</span>
-        Preterm Delivery vs Control
-      </h3>
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:4px;">
+        <h3 style="font-size:13px;font-weight:700;color:var(--navy);margin:0;">
+          <span class="fig-lbl" style="font-size:10px;padding:2px 7px;">PTD</span>
+          Preterm Delivery vs Control
+        </h3>
+        <button onclick="openVolcModal('volcPTD','Preterm Delivery vs Control')"
+                style="background:none;border:1px solid #cbd5e1;border-radius:5px;
+                       padding:3px 8px;cursor:pointer;font-size:11px;color:#64748b;
+                       white-space:nowrap;flex-shrink:0;margin-left:8px;"
+                title="Open full-screen">⛶ Expand</button>
+      </div>
       <p class="sub">x = Log₂FC · y = −log₁₀(p) · dashed lines: p = 0.05 and |FC| = 1.5</p>
       <div class="legend" style="margin-bottom:8px;">
         <span class="legend-item"><span class="legend-dot" style="background:#0d9488"></span>ACTIVE · Clnc_Endg_Cmpd</span>
@@ -1462,6 +1491,8 @@ function buildMetabCharts() {
   makeVolcano('volcPTD', 'fpt', 'ppt');
 }
 
+window._volcData = {};   // store point arrays per canvasId for modal reuse
+
 function makeVolcano(canvasId, fcKey, pKey) {
   const LOG10_005 = -Math.log10(0.05);  // 1.301
   const ptsBg   = [], ptsIt = [], ptsAx = [], ptsAc = [];
@@ -1475,6 +1506,9 @@ function makeVolcano(canvasId, fcKey, pKey) {
     else if (d.clnc)                   ptsAc.push(pt);
     else                               ptsAx.push(pt);
   });
+
+  // Save point arrays so the modal can recreate the chart at full size
+  window._volcData[canvasId] = { ptsBg, ptsIt, ptsAx, ptsAc };
 
   const chart = new Chart(document.getElementById(canvasId), {
     type: 'scatter',
@@ -1597,6 +1631,116 @@ function renderMetabTable(arr) {
     </tr>`;
   });
 }
+
+// ── Volcano modal ─────────────────────────────────────────────────────────────
+let _volcModalChart = null;
+
+function openVolcModal(srcId, title) {
+  const data = window._volcData[srcId];
+  if (!data) return;
+
+  document.getElementById('volcModalTitle').textContent =
+    'Volcano Plot — ' + title + '  (all 293 CLEAN metabolites)';
+  document.getElementById('volcModal').style.display = 'block';
+  document.body.style.overflow = 'hidden';
+
+  // Destroy previous modal chart
+  if (_volcModalChart) { _volcModalChart.destroy(); _volcModalChart = null; }
+
+  // Replace canvas (Chart.js can't resize a used canvas cleanly)
+  const body = document.getElementById('volcModalBody');
+  body.innerHTML = '<canvas id="volcModalCanvas"></canvas>';
+
+  const LOG10_005 = -Math.log10(0.05);
+  const { ptsBg, ptsIt, ptsAx, ptsAc } = data;
+
+  _volcModalChart = new Chart(document.getElementById('volcModalCanvas'), {
+    type: 'scatter',
+    data: {
+      datasets: [
+        { label:'Background',       data:ptsBg, backgroundColor:'rgba(203,213,225,0.35)', pointRadius:4,  pointHoverRadius:6 },
+        { label:'CLNC_FLAGGED',    data:ptsIt, backgroundColor:'rgba(217,119,6,0.55)',   pointRadius:5,  pointHoverRadius:7 },
+        { label:'ACTIVE',           data:ptsAx, backgroundColor:'rgba(30,58,95,0.80)',    pointRadius:6,  pointHoverRadius:9 },
+        { label:'ACTIVE · Clnc',    data:ptsAc, backgroundColor:'rgba(13,148,136,0.90)', pointRadius:7,  pointHoverRadius:10 }
+      ]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      scales: {
+        x: { title:{display:true,text:'Log₂FC (Disease vs Control)',font:{size:13}},
+             grid:{color:'#f1f5f9'}, ticks:{callback:v=>v>0?'+'+v:v,font:{size:12}} },
+        y: { title:{display:true,text:'−log₁₀(p-value)',font:{size:13}},
+             grid:{color:'#f1f5f9'}, min:0, ticks:{font:{size:12}} }
+      },
+      plugins: {
+        legend:{display:false},
+        tooltip:{
+          callbacks:{
+            label:ctx=>{
+              const d=ctx.raw;
+              const nm=d.n.length>55?d.n.slice(0,55)+'…':d.n;
+              return[nm,`FC=${d.x.toFixed(2)}  p=${d.raw_p.toFixed(4)}  [${d.cat}]`];
+            }
+          }
+        }
+      }
+    },
+    plugins:[{
+      id:'volcLinesModal',
+      afterDraw(chart){
+        const {ctx,chartArea:{left,right,top,bottom},scales:{x:xs,y:ys}}=chart;
+        ctx.save();
+        ctx.strokeStyle='#94a3b8'; ctx.lineWidth=1.2; ctx.setLineDash([6,4]);
+        const py=ys.getPixelForValue(LOG10_005);
+        if(py>=top&&py<=bottom){
+          ctx.beginPath();ctx.moveTo(left,py);ctx.lineTo(right,py);ctx.stroke();
+          ctx.fillStyle='#94a3b8';ctx.font='11px system-ui';ctx.textAlign='left';
+          ctx.fillText('p = 0.05',left+4,py-4);
+        }
+        [-1.5,1.5].forEach(fc=>{
+          const fx=xs.getPixelForValue(fc);
+          if(fx>=left&&fx<=right){ctx.beginPath();ctx.moveTo(fx,top);ctx.lineTo(fx,bottom);ctx.stroke();}
+        });
+        ctx.setLineDash([]);
+        // Labels — more space in modal so allow longer names
+        ctx.font='bold 10px system-ui';
+        [...ptsAx,...ptsAc].forEach(pt=>{
+          const px=xs.getPixelForValue(pt.x), py2=ys.getPixelForValue(pt.y);
+          if(px<left||px>right||py2<top||py2>bottom)return;
+          const lbl=pt.n.length>30?pt.n.slice(0,30)+'…':pt.n;
+          ctx.fillStyle=pt.clnc?'#0d9488':'#1e3a5f';
+          ctx.textAlign=pt.x>=0?'left':'right';
+          ctx.fillText(lbl,pt.x>=0?px+8:px-8,py2-5);
+        });
+        ctx.restore();
+      }
+    }]
+  });
+}
+
+function closeVolcModal(evt) {
+  // Close on backdrop click (not on inner panel) or when called directly
+  if (evt && evt.target !== document.getElementById('volcModal')) return;
+  document.getElementById('volcModal').style.display = 'none';
+  document.body.style.overflow = '';
+  if (_volcModalChart) { _volcModalChart.destroy(); _volcModalChart = null; }
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeVolcModal();
+});
 </script>
+
+<!-- Volcano Modal Overlay -->
+<div id="volcModal" onclick="closeVolcModal(event)">
+  <div id="volcModalInner">
+    <div id="volcModalHeader">
+      <span id="volcModalTitle"></span>
+      <button id="volcModalClose" onclick="closeVolcModal()">✕ Close</button>
+    </div>
+    <div id="volcModalBody"></div>
+  </div>
+</div>
+
 </body>
 </html>
