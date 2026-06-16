@@ -618,7 +618,22 @@
         <div class="kv"><span class="k">M-only (Scenario B)</span><span class="v">42.9% / 41.4% balanced</span></div>
         <div class="kv"><span class="k">G-only (Scenario C)</span><span class="v">39.3% / 38.4% balanced</span></div>
         <div class="kv"><span class="k">Binary Ctrl vs Disease (D)</span><span class="v">64.3% — PE/PTD not well-separated</span></div>
-        <div class="kv"><span class="k">Stable features (Scenario A)</span><span class="v">38 total · 20 at 100% stability</span></div>
+        <div class="kv">
+          <span class="k">Stable features (Scenario A)</span>
+          <span class="v">
+            <button onclick="toggleStabList('list38c',this)"
+                    style="background:none;border:none;padding:0;cursor:pointer;
+                           color:#0d9488;font-weight:700;text-decoration:underline dotted;
+                           font-size:inherit;">38 total</button>
+            &nbsp;·&nbsp;
+            <button onclick="toggleStabList('list100c',this)"
+                    style="background:none;border:none;padding:0;cursor:pointer;
+                           color:#0d9488;font-weight:700;text-decoration:underline dotted;
+                           font-size:inherit;">20 at 100% stability</button>
+          </span>
+        </div>
+        <div id="list38c"  class="stab-panel" style="margin:2px 0 6px;"></div>
+        <div id="list100c" class="stab-panel" style="margin:2px 0 6px;"></div>
       </div>
       <div id="c2-full" class="result-view">
         <table>
@@ -1148,7 +1163,7 @@ window._stabData = [
 function toggleStabList(id, btn) {
   const panel = document.getElementById(id);
   if (!panel._built) {
-    const items = (id === 'list100')
+    const items = (id === 'list100' || id === 'list100c')
       ? window._stabData.filter(d => d.s === 100)
       : window._stabData;
     panel.innerHTML = items.map(d => {
