@@ -135,6 +135,18 @@
   .viz-card p.sub { font-size: 11px; color: var(--muted); margin-bottom: 16px; }
   .chart-wrap { position: relative; }
 
+  /* STABLE FEATURE EXPANDABLE LIST */
+  .stab-toggle { display:block; margin-top:8px; background:none; border:1px solid var(--border);
+                 border-radius:5px; padding:3px 10px; font-size:11px; color:var(--muted);
+                 cursor:pointer; width:100%; text-align:left; }
+  .stab-toggle:hover { background:#f8fafc; color:var(--navy); }
+  .stab-panel { display:none; margin-top:8px; max-height:220px; overflow-y:auto;
+                border-top:1px solid var(--border); padding-top:8px; }
+  .stab-panel.open { display:block; }
+  .stab-row { display:flex; align-items:center; gap:6px; padding:2px 0; font-size:11px;
+              border-bottom:1px solid #f1f5f9; }
+  .stab-row:last-child { border-bottom:none; }
+
   /* VOLCANO MODAL */
   #volcModal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.72);
                z-index:9999; padding:20px; box-sizing:border-box; }
@@ -308,10 +320,14 @@
     <div class="stat-card">
       <div class="val" style="color:var(--teal)">38</div>
       <div class="lbl">Stable ML features (≥50% LOOCV)</div>
+      <button class="stab-toggle" onclick="toggleStabList('list38',this)">+ Show list</button>
+      <div id="list38" class="stab-panel"></div>
     </div>
     <div class="stat-card">
       <div class="val" style="color:var(--teal)">20</div>
       <div class="lbl">Features at 100% stability</div>
+      <button class="stab-toggle" onclick="toggleStabList('list100',this)">+ Show list</button>
+      <div id="list100" class="stab-panel"></div>
     </div>
     <div class="stat-card">
       <div class="val" style="color:var(--blue)">0.040</div>
@@ -1098,6 +1114,60 @@
 </div>
 
 <script>
+// ── Stable features data (global — used by both the stat-card lists and buildCharts) ──
+window._stabData = [
+  {n:'(5R,6S,7S)-Galactosyloxy-octanamide',s:100,t:'M'},
+  {n:'1-Ethyl-2-aminopyridinium deriv.',s:100,t:'M'},
+  {n:'2-Fluorocyclopentanol',s:100,t:'M'},
+  {n:'D-Sphingosine',s:100,t:'M'},
+  {n:'Dimethyl phosphonate deriv.',s:100,t:'M'},
+  {n:'L-γ-Glutamyl-Cys-Gly deriv.',s:100,t:'M'},
+  {n:'Sphingosine (d18:1)',s:100,t:'M'},
+  {n:'γ-Glu-Ile',s:100,t:'M'},
+  {n:'CD8B2',s:100,t:'G'},{n:'DFFA',s:100,t:'G'},{n:'GMCL1',s:100,t:'G'},
+  {n:'HOXD12',s:100,t:'G'},{n:'MIR34A',s:100,t:'G'},{n:'MIR4420',s:100,t:'G'},
+  {n:'MIR4438',s:100,t:'G'},{n:'MIR6769B',s:100,t:'G'},{n:'OR10J4',s:100,t:'G'},
+  {n:'RN7SL614P',s:100,t:'G'},{n:'SNORA44',s:100,t:'G'},{n:'Vault',s:100,t:'G'},
+  {n:'1,3,7-trimethylxanthine',s:96.4,t:'M'},
+  {n:'2-Benzoylaminobiphenyl',s:96.4,t:'M'},
+  {n:'N-(Dimethylamino)benzyl-triazaadamantane',s:96.4,t:'M'},
+  {n:'1-(4-Heptylphenyl)-triazine-diamine',s:92.9,t:'M'},
+  {n:'TNFRSF1B',s:92.9,t:'G'},
+  {n:'FNDC10',s:89.3,t:'G'},{n:'HOXD11',s:89.3,t:'G'},
+  {n:'3-(Benzylthio)propanoic acid',s:78.6,t:'M'},
+  {n:'ID3',s:78.6,t:'G'},{n:'RN7SL204P',s:75,t:'G'},
+  {n:'NTSR2',s:71.4,t:'G'},
+  {n:'LINC01134',s:67.9,t:'G'},{n:'RN7SL531P',s:67.9,t:'G'},
+  {n:'1-Cyano-methylbutyl-pyridinyl-guanidine',s:64.3,t:'M'},
+  {n:'EVX2',s:57.1,t:'G'},{n:'MIR4268',s:53.6,t:'G'},
+  {n:'Macrocyclic protease inhibitor',s:50,t:'M'},
+  {n:'LINC01805',s:50,t:'G'}
+];
+
+// ── Expandable stable-feature list on stat cards ───────────────────────────────
+function toggleStabList(id, btn) {
+  const panel = document.getElementById(id);
+  if (!panel._built) {
+    const items = (id === 'list100')
+      ? window._stabData.filter(d => d.s === 100)
+      : window._stabData;
+    panel.innerHTML = items.map(d => {
+      const isG  = d.t === 'G';
+      const col  = isG ? '#2563eb' : '#dc2626';
+      const bg   = isG ? 'rgba(37,99,235,0.10)' : 'rgba(220,38,38,0.10)';
+      const tag  = `<span style="display:inline-block;background:${bg};color:${col};
+        border-radius:3px;padding:0 5px;font-size:10px;font-weight:700;flex-shrink:0">${isG?'G':'M'}</span>`;
+      const pct  = d.s === 100
+        ? `<span style="color:#059669;font-weight:700;flex-shrink:0">${d.s}%</span>`
+        : `<span style="color:${col};flex-shrink:0">${d.s}%</span>`;
+      return `<div class="stab-row">${tag}<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${d.n}</span>${pct}</div>`;
+    }).join('');
+    panel._built = true;
+  }
+  const open = panel.classList.toggle('open');
+  btn.textContent = open ? '− Hide list' : '+ Show list';
+}
+
 // ── Tab switching ──────────────────────────────────────────────────────────────
 function showTab(id, btn) {
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
@@ -1196,36 +1266,8 @@ function buildCharts() {
   });
 
   // 3. Feature Stability
-  // Feature Stability Table
-  const stabData = [
-    {n:'(5R,6S,7S)-Galactosyloxy-octanamide',s:100,t:'M'},
-    {n:'1-Ethyl-2-aminopyridinium deriv.',s:100,t:'M'},
-    {n:'2-Fluorocyclopentanol',s:100,t:'M'},
-    {n:'D-Sphingosine',s:100,t:'M'},
-    {n:'Dimethyl phosphonate deriv.',s:100,t:'M'},
-    {n:'L-γ-Glutamyl-Cys-Gly deriv.',s:100,t:'M'},
-    {n:'Sphingosine (d18:1)',s:100,t:'M'},
-    {n:'γ-Glu-Ile',s:100,t:'M'},
-    {n:'CD8B2',s:100,t:'G'},{n:'DFFA',s:100,t:'G'},{n:'GMCL1',s:100,t:'G'},
-    {n:'HOXD12',s:100,t:'G'},{n:'MIR34A',s:100,t:'G'},{n:'MIR4420',s:100,t:'G'},
-    {n:'MIR4438',s:100,t:'G'},{n:'MIR6769B',s:100,t:'G'},{n:'OR10J4',s:100,t:'G'},
-    {n:'RN7SL614P',s:100,t:'G'},{n:'SNORA44',s:100,t:'G'},{n:'Vault',s:100,t:'G'},
-    {n:'1,3,7-trimethylxanthine',s:96.4,t:'M'},
-    {n:'2-Benzoylaminobiphenyl',s:96.4,t:'M'},
-    {n:'N-(Dimethylamino)benzyl-triazaadamantane',s:96.4,t:'M'},
-    {n:'1-(4-Heptylphenyl)-triazine-diamine',s:92.9,t:'M'},
-    {n:'TNFRSF1B',s:92.9,t:'G'},
-    {n:'FNDC10',s:89.3,t:'G'},{n:'HOXD11',s:89.3,t:'G'},
-    {n:'3-(Benzylthio)propanoic acid',s:78.6,t:'M'},
-    {n:'ID3',s:78.6,t:'G'},{n:'RN7SL204P',s:75,t:'G'},
-    {n:'NTSR2',s:71.4,t:'G'},
-    {n:'LINC01134',s:67.9,t:'G'},{n:'RN7SL531P',s:67.9,t:'G'},
-    {n:'1-Cyano-methylbutyl-pyridinyl-guanidine',s:64.3,t:'M'},
-    {n:'EVX2',s:57.1,t:'G'},{n:'MIR4268',s:53.6,t:'G'},
-    {n:'Macrocyclic protease inhibitor',s:50,t:'M'},
-    {n:'LINC01805',s:50,t:'G'}
-  ];
-  stabData.sort((a,b) => b.s - a.s || a.n.localeCompare(b.n));
+  // Feature Stability Table  (data lives in window._stabData — defined at script load)
+  const stabData = window._stabData.slice().sort((a,b) => b.s - a.s || a.n.localeCompare(b.n));
 
   const tbl = document.getElementById('stabilityTable');
   let html = '<table style="font-size:13px"><thead><tr>'
