@@ -451,7 +451,7 @@
       <div id="b2-quick" class="result-view active result-quick">
         <div class="kv"><span class="k">Pairs with pathway overlap</span><span class="v">164 / ~26,500 (0.6%)</span></div>
         <div class="kv"><span class="k">Top pair</span><span class="v">NDUFS1 × Grandiflorenic acid (map01100)</span></div>
-        <div class="kv"><span class="k">Notable convergence</span><span class="v">TUBA3D × Sphingosine d18:1 (map04210 Apoptosis)</span></div>
+        <div class="kv"><span class="k">Notable co-annotation</span><span class="v">TUBA3D × Sphingosine d18:1 — share map04210 (Apoptosis) in KEGG database</span></div>
       </div>
       <div id="b2-full" class="result-view">
         <table>
@@ -491,23 +491,24 @@
         <button onclick="switchView('b3','full',this)">Full</button>
       </div>
       <div id="b3-quick" class="result-view active result-quick">
-        <div class="kv"><span class="k">Strongest convergence</span><span class="v">TUBA3D + Sphingosine via Apoptosis (map04210)</span></div>
+        <div class="kv"><span class="k">Top KEGG co-annotation</span><span class="v">TUBA3D + Sphingosine — share map04210 (Apoptosis) in KEGG database</span></div>
         <div class="kv"><span class="k">Fisher enrichment FDR &lt; 0.05</span><span class="v nosig">0 pathways (Supplementary)</span></div>
-        <div class="kv"><span class="k">Biological signal</span><span class="v">Sphingolipid/apoptosis axis converges across Arm B and Arm C</span></div>
+        <div class="kv"><span class="k">Candidate for network analysis</span><span class="v">Sphingosine d18:1 + D-Sphingosine (100% ML stability) + TUBA3D (Arm B nominal correlation)</span></div>
       </div>
       <div id="b3-full" class="result-view">
         <p style="font-size:13px;line-height:1.7;color:#374151;margin-bottom:12px;">
           The absence of FDR-significant enrichment is consistent with the sample size (n=28)
-          and the small number of stable features (38). However, the convergence between
-          Arm B pathway overlap and Arm C stable features on the Apoptosis pathway
-          (Sphingosine d18:1, D-Sphingosine, TUBA3D) represents independent corroboration
-          from two analytical strategies — a stronger signal than either arm alone.
+          and the small number of stable features (38). Layer 2 identifies gene–metabolite pairs
+          that share a KEGG pathway annotation and include at least one ML-stable feature —
+          these are hypothesis-generating candidates for downstream network analysis
+          (e.g., STRING, MetaboAnalyst Joint Pathway). KEGG co-annotation does not
+          demonstrate a functional interaction between the listed features.
         </p>
         <table>
           <thead><tr><th>Layer</th><th>Result</th></tr></thead>
           <tbody>
             <tr><td>L1 — Pathway mapping</td><td>Apoptosis, HOX cluster pathways enriched in stable gene set</td></tr>
-            <tr><td>L2 — Convergence</td><td>Sphingosine + TUBA3D via map04210 (Apoptosis)</td></tr>
+            <tr><td>L2 — KEGG co-annotation</td><td>Sphingosine + TUBA3D share map04210 (Apoptosis) — candidates for network validation</td></tr>
             <tr><td>L3 — Fisher test</td><td>No FDR &lt; 0.05 — see kegg_pathway_enrichment_fisher_supplementary.csv</td></tr>
           </tbody>
         </table>
@@ -679,8 +680,8 @@
 
     <!-- Chart D: Integration Network -->
     <div class="viz-card full">
-      <h3><span class="fig-lbl">D</span>TUBA3D–Sphingosine Convergence Across Analytical Layers</h3>
-      <p class="sub">Same signal detected independently by Arm B (correlation + KEGG) and Arm C (ML). Apoptosis is the shared pathway — the explanation, not the finding.</p>
+      <h3><span class="fig-lbl">D</span>TUBA3D–Sphingosine: KEGG Co-annotation Candidate</h3>
+      <p class="sub">Sphingosines reach 100% ML stability (Arm C) and show Spearman correlation with TUBA3D (Arm B). Both features share map04210 (Apoptosis) in the KEGG database — a shared annotation, not a demonstrated functional interaction. Candidate for STRING / MetaboAnalyst network validation.</p>
       <svg viewBox="0 0 740 255" width="100%" style="max-width:740px;display:block;margin:0 auto;">
         <defs>
           <marker id="arr2" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
@@ -733,7 +734,7 @@
         <!-- Pathway box (bottom centre) -->
         <rect x="188" y="222" width="305" height="30" rx="7" fill="#f0fdf4" stroke="#059669" stroke-width="1.5"/>
         <text x="340" y="234" text-anchor="middle" fill="#065f46" font-size="10" font-weight="700">Shared KEGG Pathway: Apoptosis (map04210)</text>
-        <text x="340" y="247" text-anchor="middle" fill="#059669" font-size="9">Convergence point — biological interpretation</text>
+        <text x="340" y="247" text-anchor="middle" fill="#059669" font-size="9">KEGG co-annotation — candidate for network validation</text>
       </svg>
     </div>
 
@@ -806,12 +807,24 @@
   </div>
 
   <div class="finding-card finding">
-    <h3>Sphingolipid / apoptosis axis — converging evidence from two arms</h3>
+    <h3>Sphingolipids are the most robust metabolite signal</h3>
     <p>
-      <span class="tag">Arm B</span><span class="tag">Arm C</span>
-      D-Sphingosine and Sphingosine (d18:1) show 100% ML stability and PE-elevated Log2FC (~+0.97).
-      Independently, TUBA3D correlates with both sphingosines and shares the Apoptosis pathway
-      (map04210). Two separate analytical arms point to the same biological axis.
+      <span class="tag">Arm C</span>
+      D-Sphingosine and Sphingosine (d18:1) show 100% ML stability across all 28 LOOCV folds
+      and are PE-elevated (Log2FC ~+0.97). These are the strongest individual metabolite findings
+      from the pipeline.
+    </p>
+  </div>
+
+  <div class="finding-card finding">
+    <h3>TUBA3D — KEGG co-annotation candidate for network analysis</h3>
+    <p>
+      <span class="tag">Arm B</span>
+      TUBA3D shows nominal Spearman correlation with both sphingosines (ρ ≈ 0.59, p&lt;0.001)
+      and shares the Apoptosis pathway annotation (map04210) in KEGG.
+      This co-annotation makes TUBA3D + sphingolipids a priority pair for validation
+      by STRING or MetaboAnalyst Joint Pathway — not a demonstrated functional interaction
+      from the current data. TUBA3D was not retained among the 38 ML-stable features.
     </p>
   </div>
 
@@ -853,6 +866,17 @@
       Gene–metabolite Spearman correlations were computed across all 28 samples pooled,
       not within groups. A correlation may reflect biological co-regulation or group
       composition effects. Within-group correlations would require n≥30 per group.
+    </p>
+  </div>
+
+  <div class="finding-card limitation">
+    <h3>Feature discovery pipeline — not mechanistic inference</h3>
+    <p>
+      This pipeline identifies candidate features and KEGG co-annotation pairs. It does not
+      establish functional interactions between genes and metabolites. Interpreting KEGG
+      pathway overlap as evidence of direct biological interaction would overstate the findings.
+      Mechanistic inference requires dedicated network tools (STRING protein interaction network,
+      MetaboAnalyst Joint Pathway Analysis) applied to the candidate list as a planned next step.
     </p>
   </div>
 
