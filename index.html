@@ -691,6 +691,133 @@
       </div>
     </div>
   </div>
+  <!-- C4 -->
+  <div class="step-card" id="card-c4">
+    <div class="step-header" onclick="toggleCard('card-c4')">
+      <div class="step-header-left">
+        <span class="step-num">C4</span>
+        <div>
+          <div class="step-name">Stable Feature Profile — Per-group Statistics</div>
+          <div class="step-line">Group means, Log2FC, and Wilcoxon p-values for all 38 stable features</div>
+        </div>
+      </div>
+      <div class="toggle-btn">+</div>
+    </div>
+    <div class="step-body">
+      <div class="what-box">
+        Per-group statistics for every Scenario A stable feature (≥50% LOOCV selection frequency).
+        Values are log₂(TPM+1) for genes and log₂(intensity+1) for metabolites.
+        Bar direction in Figure E is validated here: right = elevated in labelled group vs Control; left = suppressed.
+        Features flagged <span style="font-size:10px;background:#fef3c7;color:#92400e;border-radius:3px;padding:1px 5px;font-weight:600;">XEN</span> are exogenous (drug / contaminant / organofluorine) — reported for transparency, not interpreted biologically.
+      </div>
+
+      <style>
+        /* C4 table overrides */
+        #card-c4 th { text-align:center; }
+        #card-c4 th:first-child { text-align:left; }
+        #card-c4 td { text-align:center; vertical-align:middle; }
+        #card-c4 td:first-child { text-align:left; font-weight:600; color:var(--navy); font-family:monospace; font-size:11px; }
+        #card-c4 td:last-child { text-align:left; font-size:10px; color:var(--muted); }
+        .c4-sig  { background:#fef9c3; color:#854d0e; font-weight:700; border-radius:3px; padding:1px 4px; }
+        .c4-trend{ color:#92400e; font-style:italic; }
+        .c4-pe   { color:#dc2626; font-weight:600; }
+        .c4-ptd  { color:#2563eb; font-weight:600; }
+        .c4-ctrl { color:#6b7280; }
+        .c4-sec  { background:#f1f5f9; }
+        .c4-sec td { font-weight:700; color:var(--muted); font-size:10px; text-transform:uppercase; letter-spacing:.05em; padding:5px 12px; border-bottom:2px solid var(--border); }
+        .xen-tag { font-size:10px; background:#fef3c7; color:#92400e; border-radius:3px; padding:1px 5px; font-weight:600; margin-left:4px; }
+        .stab-pct-100 { color:#166534; font-weight:700; }
+        .stab-pct-90  { color:#1e40af; font-weight:600; }
+        .stab-pct-70  { color:#7c3aed; }
+        .stab-pct-50  { color:#6b7280; }
+      </style>
+
+      <!-- GENES: 100% stability -->
+      <p style="font-size:11px;font-weight:700;color:var(--navy);margin:16px 0 4px;">
+        Genes — 100% Stability &nbsp;<span style="font-weight:400;color:var(--muted);">(log₂ TPM+1)</span>
+      </p>
+      <table>
+        <thead>
+          <tr>
+            <th>Feature</th><th>Stab%</th>
+            <th>Ctrl mean</th><th>PE mean</th><th>PTD mean</th>
+            <th>FC_PE</th><th>p_PE</th><th>FC_PTD</th><th>p_PTD</th>
+            <th>Note</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>MIR4420</td><td class="stab-pct-100">100%</td><td class="c4-ctrl">0.01</td><td class="c4-pe">1.45</td><td class="c4-ptd">0.82</td><td>+1.44</td><td><span class="c4-sig">0.008</span></td><td>+0.81</td><td>0.115</td><td>PE-specific, significant</td></tr>
+          <tr><td>MIR6769B</td><td class="stab-pct-100">100%</td><td class="c4-ctrl">0.18</td><td class="c4-pe">1.47</td><td class="c4-ptd">0.70</td><td>+1.29</td><td><span class="c4-sig">0.026</span></td><td>+0.52</td><td>0.624</td><td>PE-specific, significant</td></tr>
+          <tr><td>MIR4438</td><td class="stab-pct-100">100%</td><td class="c4-ctrl">0.26</td><td class="c4-pe">1.61</td><td class="c4-ptd">0.46</td><td>+1.35</td><td><span class="c4-trend">0.073</span></td><td>+0.20</td><td>0.318</td><td>PE trend</td></tr>
+          <tr><td>MIR34A</td><td class="stab-pct-100">100%</td><td class="c4-ctrl">1.09</td><td class="c4-pe">1.63</td><td class="c4-ptd">2.76</td><td>+0.53</td><td>0.175</td><td>+1.67</td><td><span class="c4-sig">0.010</span></td><td>PTD-specific, significant</td></tr>
+          <tr><td>HOXD12</td><td class="stab-pct-100">100%</td><td class="c4-ctrl">0.13</td><td class="c4-pe">1.63</td><td class="c4-ptd">0.63</td><td>+1.50</td><td><span class="c4-trend">0.075</span></td><td>+0.50</td><td>0.703</td><td>PE trend; PTD bimodal</td></tr>
+          <tr><td>CD8B2</td><td class="stab-pct-100">100%</td><td class="c4-ctrl">0.35</td><td class="c4-pe">1.70</td><td class="c4-ptd">0.96</td><td>+1.35</td><td><span class="c4-sig">0.015</span></td><td>+0.61</td><td>0.323</td><td>PE-specific; cytotoxic T-cell marker</td></tr>
+          <tr><td>OR10J4</td><td class="stab-pct-100">100%</td><td class="c4-ctrl">0.10</td><td class="c4-pe">2.32</td><td class="c4-ptd">0.85</td><td>+2.22</td><td><span class="c4-sig">0.011</span></td><td>+0.75</td><td>0.383</td><td>PE-specific; large FC</td></tr>
+          <tr><td>Vault</td><td class="stab-pct-100">100%</td><td class="c4-ctrl">0.02</td><td class="c4-pe">1.54</td><td class="c4-ptd">0.06</td><td>+1.51</td><td>0.176</td><td>+0.03</td><td>0.788</td><td>PE trend; partial expressors</td></tr>
+          <tr><td>GMCL1</td><td class="stab-pct-100">100%</td><td class="c4-ctrl">0.15</td><td class="c4-pe">0.32</td><td class="c4-ptd">1.37</td><td>+0.17</td><td>0.209</td><td>+1.21</td><td><span class="c4-sig">0.012</span></td><td>PTD-specific, significant</td></tr>
+          <tr><td>RN7SL614P</td><td class="stab-pct-100">100%</td><td class="c4-ctrl">2.47</td><td class="c4-pe">3.13</td><td class="c4-ptd">4.95</td><td>+0.66</td><td>0.248</td><td>+2.49</td><td><span class="c4-sig">0.010</span></td><td>PTD-specific; large FC</td></tr>
+          <tr><td>SNORA44</td><td class="stab-pct-100">100%</td><td class="c4-ctrl">0.35</td><td class="c4-pe">0.63</td><td class="c4-ptd">2.05</td><td>+0.28</td><td>0.880</td><td>+1.70</td><td><span class="c4-sig">0.014</span></td><td>PTD-specific, significant</td></tr>
+          <tr><td>DFFA</td><td class="stab-pct-100">100%</td><td class="c4-ctrl">1.16</td><td class="c4-pe">1.90</td><td class="c4-ptd">2.63</td><td>+0.74</td><td><span class="c4-trend">0.050</span></td><td>+1.47</td><td><span class="c4-sig">0.004</span></td><td>Both groups; PTD p=0.004 strongest univariate gene signal; apoptosis</td></tr>
+        </tbody>
+      </table>
+
+      <!-- GENES: <100% stability -->
+      <p style="font-size:11px;font-weight:700;color:var(--navy);margin:16px 0 4px;">
+        Genes — &lt;100% Stability (notable) &nbsp;<span style="font-weight:400;color:var(--muted);">(log₂ TPM+1)</span>
+      </p>
+      <table>
+        <thead>
+          <tr>
+            <th>Feature</th><th>Stab%</th>
+            <th>Ctrl mean</th><th>PE mean</th><th>PTD mean</th>
+            <th>FC_PE</th><th>p_PE</th><th>FC_PTD</th><th>p_PTD</th>
+            <th>Note</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>TNFRSF1B</td><td class="stab-pct-90">92.9%</td><td class="c4-ctrl">1.20</td><td class="c4-pe">1.58</td><td class="c4-ptd">2.80</td><td>+0.38</td><td>0.248</td><td>+1.60</td><td><span class="c4-sig">0.031</span></td><td>PTD-specific; TNF receptor — known inflammation pathway</td></tr>
+          <tr><td>FNDC10</td><td class="stab-pct-90">89.3%</td><td class="c4-ctrl">2.12</td><td class="c4-pe">2.97</td><td class="c4-ptd">4.33</td><td>+0.85</td><td>0.119</td><td>+2.21</td><td><span class="c4-sig">0.039</span></td><td>PTD; highest FC among genes</td></tr>
+          <tr><td>HOXD11</td><td class="stab-pct-90">89.3%</td><td class="c4-ctrl">0.05</td><td class="c4-pe">0.95</td><td class="c4-ptd">0.16</td><td>+0.90</td><td><span class="c4-trend">0.057</span></td><td>+0.11</td><td>0.950</td><td>PE trend; co-selected with HOXD12 in 89% of folds — shared HOXD cluster regulation</td></tr>
+          <tr><td>ID3</td><td class="stab-pct-70">78.6%</td><td class="c4-ctrl">1.83</td><td class="c4-pe">1.92</td><td class="c4-ptd">3.18</td><td>+0.10</td><td>0.802</td><td>+1.35</td><td><span class="c4-trend">0.079</span></td><td>PTD trend; p not significant</td></tr>
+        </tbody>
+      </table>
+
+      <!-- METABOLITES -->
+      <p style="font-size:11px;font-weight:700;color:var(--navy);margin:16px 0 4px;">
+        Metabolites — 100% Stability &nbsp;<span style="font-weight:400;color:var(--muted);">(log₂ intensity+1)</span>
+      </p>
+      <table>
+        <thead>
+          <tr>
+            <th>Feature</th><th>Stab%</th>
+            <th>Ctrl mean</th><th>PE mean</th><th>PTD mean</th>
+            <th>FC_PE</th><th>p_PE</th><th>FC_PTD</th><th>p_PTD</th>
+            <th>Note</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>D-Sphingosine</td><td class="stab-pct-100">100%</td><td class="c4-ctrl">20.07</td><td class="c4-pe">21.04</td><td class="c4-ptd">19.80</td><td>+0.97</td><td><span class="c4-trend">0.079</span></td><td>−0.27</td><td>0.651</td><td>PE trend; endogenous sphingolipid; PE axis</td></tr>
+          <tr><td>Sphingosine (d18:1)</td><td class="stab-pct-100">100%</td><td class="c4-ctrl">20.04</td><td class="c4-pe">21.04</td><td class="c4-ptd">19.77</td><td>+0.99</td><td><span class="c4-trend">0.079</span></td><td>−0.28</td><td>0.580</td><td>Nearly identical to D-Sphingosine; PE axis</td></tr>
+          <tr><td>Octanamide derivative <sup>1</sup></td><td class="stab-pct-100">100%</td><td class="c4-ctrl">21.97</td><td class="c4-pe">21.21</td><td class="c4-ptd">21.47</td><td>−0.76</td><td><span class="c4-sig">0.039</span></td><td>−0.50</td><td>0.145</td><td><em>Decreased</em> in PE — opposite direction to sphingolipids; glycosphingolipid</td></tr>
+          <tr><td>Pyridinium derivative <sup>2</sup><span class="xen-tag">XEN</span></td><td class="stab-pct-100">100%</td><td class="c4-ctrl">20.78</td><td class="c4-pe">22.48</td><td class="c4-ptd">20.99</td><td>+1.32</td><td><span class="c4-sig">0.039</span></td><td>−0.11</td><td>0.802</td><td>PE-specific; likely exogenous</td></tr>
+          <tr><td>Dimethyl phosphonate <sup>3</sup><span class="xen-tag">XEN</span></td><td class="stab-pct-100">100%</td><td class="c4-ctrl">17.03</td><td class="c4-pe">19.09</td><td class="c4-ptd">17.23</td><td>+2.06</td><td><span class="c4-sig">0.039</span></td><td>+0.19</td><td>0.175</td><td>PE; large FC; exogenous [XEN]</td></tr>
+          <tr><td>L-γ-Glutamyl-S... <sup>4</sup></td><td class="stab-pct-100">100%</td><td class="c4-ctrl">14.93</td><td class="c4-pe">16.57</td><td class="c4-ptd">15.03</td><td>+1.64</td><td>0.175</td><td>+0.09</td><td>0.802</td><td>PE trend; not significant</td></tr>
+          <tr><td>γ-Glu-Ile</td><td class="stab-pct-100">100%</td><td class="c4-ctrl">21.63</td><td class="c4-pe">22.19</td><td class="c4-ptd">21.45</td><td>+0.56</td><td>0.119</td><td>−0.18</td><td>0.725</td><td>Weak trend; neither comparison significant</td></tr>
+          <tr><td>2-Fluorocyclopentanol<span class="xen-tag">XEN</span></td><td class="stab-pct-100">100%</td><td class="c4-ctrl">24.02</td><td class="c4-pe">23.49</td><td class="c4-ptd">23.17</td><td>−0.54</td><td><span class="c4-sig">0.018</span></td><td>−0.85</td><td><span class="c4-sig">0.002</span></td><td><em>Decreased</em> in both groups; organofluorine — likely contaminant, not interpreted biologically</td></tr>
+        </tbody>
+      </table>
+
+      <p style="font-size:10px;color:var(--muted);margin-top:12px;line-height:1.6;">
+        <sup>1</sup> (5R,6S,7S)-8-(α-D-Galactopyranosyloxy)-5,6-dihydroxy-7-(octanoylamino)-N-(6-phenylhexyl)octanamide<br>
+        <sup>2</sup> 1-Ethyl-2-[(1-ethyl-2(1H)-pyridinylidene)amino]pyridinium<br>
+        <sup>3</sup> Dimethyl [4-hydroxy-3,5-bis(2-methyl-2-propanyl)benzyl]phosphonate<br>
+        <sup>4</sup> L-γ-Glutamyl-S-[hydroxy(propyl)carbamoyl]-L-cysteinylglycine<br>
+        <span style="background:#fef3c7;color:#92400e;border-radius:3px;padding:1px 5px;font-weight:600;font-size:10px;">XEN</span> = exogenous compound (drug / contaminant / organofluorine) — reported for transparency only.<br>
+        Highlighted p-values: <span style="background:#fef9c3;color:#854d0e;font-weight:700;border-radius:3px;padding:1px 4px;">bold yellow</span> = p &lt; 0.05; <em style="color:#92400e;">italic</em> = p 0.05–0.10 (trend).
+      </p>
+    </div>
+  </div>
+
 </div>
 
 <!-- ═══════════════════════════════════════════════ TAB: VISUALIZATIONS -->
