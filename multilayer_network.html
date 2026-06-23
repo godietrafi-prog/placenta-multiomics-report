@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Multi-layer Interaction Network — PE/PTD Multi-omics</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.28.1/cytoscape.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', sans-serif; background: #0f172a; color: #e2e8f0; }
+  #header { padding: 18px 24px 10px; border-bottom: 1px solid #1e293b; }
+  #header h1 { font-size: 1.25rem; font-weight: 600; color: #5eead4; }
+  #header p  { font-size: 0.78rem; color: #94a3b8; margin-top: 4px; }
+  #legend {
+    display: flex; flex-wrap: wrap; gap: 14px;
+    padding: 10px 24px; background: #0f172a;
+    border-bottom: 1px solid #1e293b;
+  }
+  .legend-item { display: flex; align-items: center; gap: 7px; font-size: 0.78rem; }
+  .dot { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; }
+  #controls {
+    display: flex; align-items: center; gap: 12px;
+    padding: 8px 24px; background: #111827;
+    border-bottom: 1px solid #1e293b; flex-wrap: wrap;
+  }
+  #controls label { font-size: 0.78rem; color: #94a3b8; }
+  #controls select, #controls button {
+    font-size: 0.78rem; padding: 4px 10px;
+    background: #1e293b; color: #e2e8f0;
+    border: 1px solid #334155; border-radius: 4px; cursor: pointer;
+  }
+  #controls button:hover { background: #334155; }
+  #cy { width: 100%; height: calc(100vh - 148px); background: #0f172a; }
+  #tooltip {
+    position: absolute; display: none;
+    background: #1e293b; border: 1px solid #334155;
+    border-radius: 6px; padding: 8px 12px;
+    font-size: 0.78rem; color: #e2e8f0;
+    pointer-events: none; max-width: 240px; z-index: 999;
+    line-height: 1.5;
+  }
+</style>
+</head>
+<body>
+<div id="header">
+  <h1>Multi-layer Interaction Network — PE/PTD Multi-omics</h1>
+  <p>23 candidate genes · 12 TFs · 5 miRNAs · 19 metabolites · 195 edges &nbsp;·&nbsp; OmicsNet 2.0 (hsa) &nbsp;·&nbsp; hover nodes for details, scroll to zoom, drag to pan</p>
+</div>
+<div id="legend">
+  <div class="legend-item"><div class="dot" style="background:#5eead4"></div>Candidate gene (backbone PPI)</div>
+  <div class="legend-item"><div class="dot" style="background:#fbbf24"></div>TF regulator</div>
+  <div class="legend-item"><div class="dot" style="background:#a78bfa"></div>miRNA</div>
+  <div class="legend-item"><div class="dot" style="background:#34d399"></div>Metabolite</div>
+  <div class="legend-item"><div class="dot" style="background:#f87171; border: 2px solid #fbbf24"></div>100% stable feature</div>
+</div>
+<div id="controls">
+  <label>Layout:</label>
+  <select id="layoutSel">
+    <option value="cose">CoSE (force-directed)</option>
+    <option value="concentric" selected>Concentric (by layer)</option>
+    <option value="grid">Grid</option>
+    <option value="breadthfirst">Breadth-first (genes centred)</option>
+  </select>
+  <button onclick="runLayout()">Apply</button>
+  <button onclick="cy.fit()">Fit view</button>
+  <label style="margin-left:16px">Show edges:</label>
+  <select id="edgeSel" onchange="filterEdges()">
+    <option value="all">All layers</option>
+    <option value="ppi">PPI only</option>
+    <option value="tf">TF → Gene only</option>
+    <option value="mirna">miRNA → Gene only</option>
+    <option value="metabolite">Metabolite → Gene only</option>
+  </select>
+</div>
+<div id="cy"></div>
+<div id="tooltip"></div>
+
+<script>
+const elements = [{"data": {"id": "MRPS15", "label": "MRPS15", "layer": "gene", "stability": "candidate"}}, {"data": {"id": "TRAF3IP3", "label": "TRAF3IP3", "layer": "gene", "stability": "candidate"}}, {"data": {"id": "ZNF687", "label": "ZNF687", "layer": "gene", "stability": "candidate"}}, {"data": {"id": "NCKAP1", "label": "NCKAP1", "layer": "gene", "stability": "candidate"}}, {"data": {"id": "EPRS", "label": "EPRS", "layer": "gene", "stability": "candidate"}}, {"data": {"id": "INTS3", "label": "INTS3", "layer": "gene", "stability": "candidate"}}, {"data": {"id": "CENPL", "label": "CENPL", "layer": "gene", "stability": "candidate"}}, {"data": {"id": "HIST2H4B", "label": "HIST2H4B", "layer": "gene", "stability": "candidate"}}, {"data": {"id": "WDR75", "label": "WDR75", "layer": "gene", "stability": "candidate"}}, {"data": {"id": "CCNL2", "label": "CCNL2", "layer": "gene", "stability": "candidate"}}, {"data": {"id": "INTS11", "label": "INTS11", "layer": "gene", "stability": "candidate"}}, {"data": {"id": "MRPS9", "label": "MRPS9", "layer": "gene", "stability": "candidate"}}, {"data": {"id": "MOB4", "label": "MOB4", "layer": "gene", "stability": "candidate"}}, {"data": {"id": "MRPL20", "label": "MRPL20", "layer": "gene", "stability": "candidate"}}, {"data": {"id": "CENPS", "label": "CENPS", "layer": "gene", "stability": "candidate"}}, {"data": {"id": "INTS7", "label": "INTS7", "layer": "gene", "stability": "candidate"}}, {"data": {"id": "KDM4A", "label": "KDM4A", "layer": "gene", "stability": "candidate"}}, {"data": {"id": "NOL10", "label": "NOL10", "layer": "gene", "stability": "candidate"}}, {"data": {"id": "WASF2", "label": "WASF2", "layer": "gene", "stability": "candidate"}}, {"data": {"id": "MRPS14", "label": "MRPS14", "layer": "gene", "stability": "candidate"}}, {"data": {"id": "PNO1", "label": "PNO1", "layer": "gene", "stability": "candidate"}}, {"data": {"id": "YARS", "label": "YARS", "layer": "gene", "stability": "candidate"}}, {"data": {"id": "CDK11A", "label": "CDK11A", "layer": "gene", "stability": "candidate"}}, {"data": {"id": "hsa-miR-9*", "label": "hsa-miR-9*", "layer": "mirna", "stability": ""}}, {"data": {"id": "hsa-miR-34a-5p", "label": "hsa-miR-34a-5p", "layer": "mirna", "stability": ""}}, {"data": {"id": "hsa-miR-125b-5p", "label": "hsa-miR-125b-5p", "layer": "mirna", "stability": ""}}, {"data": {"id": "hsa-miR-146;hsa-miR-146a", "label": "hsa-miR-146;hsa-miR-146a", "layer": "mirna", "stability": ""}}, {"data": {"id": "hsa-miR-34c-3p", "label": "hsa-miR-34c-3p", "layer": "mirna", "stability": ""}}, {"data": {"id": "tRNA(Tyr)", "label": "tRNA(Tyr)", "layer": "metabolite", "stability": ""}}, {"data": {"id": "L-Tyrosyl-tRNA(Tyr)", "label": "L-Tyrosyl-tRNA(Tyr)", "layer": "metabolite", "stability": ""}}, {"data": {"id": "Tyrosine", "label": "Tyrosine", "layer": "metabolite", "stability": ""}}, {"data": {"id": "Protein", "label": "Protein", "layer": "metabolite", "stability": ""}}, {"data": {"id": "alpha-Ketoglutaric acid", "label": "alpha-Ketoglutaric acid", "layer": "metabolite", "stability": ""}}, {"data": {"id": "Protein N6,N6,N6-trimethyl-L-lysine", "label": "Protein N6,N6,N6-trimethyl…", "layer": "metabolite", "stability": ""}}, {"data": {"id": "Protein N6,N6-dimethyl-L-lysine", "label": "Protein N6,N6-dimethyl-L-l…", "layer": "metabolite", "stability": ""}}, {"data": {"id": "Formalin", "label": "Formalin", "layer": "metabolite", "stability": ""}}, {"data": {"id": "Ethylenesuccinic acid", "label": "Ethylenesuccinic acid", "layer": "metabolite", "stability": ""}}, {"data": {"id": "Protein N6-methyl-L-lysine", "label": "Protein N6-methyl-L-lysine", "layer": "metabolite", "stability": ""}}, {"data": {"id": "tRNA(Pro)", "label": "tRNA(Pro)", "layer": "metabolite", "stability": ""}}, {"data": {"id": "L-Glutamyl-tRNA(Glu)", "label": "L-Glutamyl-tRNA(Glu)", "layer": "metabolite", "stability": ""}}, {"data": {"id": "tRNA(Glu)", "label": "tRNA(Glu)", "layer": "metabolite", "stability": ""}}, {"data": {"id": "L-Prolyl-tRNA(Pro)", "label": "L-Prolyl-tRNA(Pro)", "layer": "metabolite", "stability": ""}}, {"data": {"id": "2-Pyrrolidinecarboxylic acid", "label": "2-Pyrrolidinecarboxylic acid", "layer": "metabolite", "stability": ""}}, {"data": {"id": "Glutamate", "label": "Glutamate", "layer": "metabolite", "stability": ""}}, {"data": {"id": "ATP", "label": "ATP", "layer": "metabolite", "stability": ""}}, {"data": {"id": "Diphosphate", "label": "Diphosphate", "layer": "metabolite", "stability": ""}}, {"data": {"id": "AMP", "label": "AMP", "layer": "metabolite", "stability": ""}}, {"data": {"id": "FOXA1", "label": "FOXA1", "layer": "tf", "stability": ""}}, {"data": {"id": "CTCF", "label": "CTCF", "layer": "tf", "stability": ""}}, {"data": {"id": "CEBPA", "label": "CEBPA", "layer": "tf", "stability": ""}}, {"data": {"id": "MITF", "label": "MITF", "layer": "tf", "stability": ""}}, {"data": {"id": "TFAP2C", "label": "TFAP2C", "layer": "tf", "stability": ""}}, {"data": {"id": "ETS1", "label": "ETS1", "layer": "tf", "stability": ""}}, {"data": {"id": "E2F4", "label": "E2F4", "layer": "tf", "stability": ""}}, {"data": {"id": "EGR1", "label": "EGR1", "layer": "tf", "stability": ""}}, {"data": {"id": "ESR1", "label": "ESR1", "layer": "tf", "stability": ""}}, {"data": {"id": "HNF4A", "label": "HNF4A", "layer": "tf", "stability": ""}}, {"data": {"id": "STAT1", "label": "STAT1", "layer": "tf", "stability": ""}}, {"data": {"id": "FOS", "label": "FOS", "layer": "tf", "stability": ""}}, {"data": {"source": "MRPS9", "target": "MRPL20", "layer": "ppi"}}, {"data": {"source": "MRPS9", "target": "MRPS15", "layer": "ppi"}}, {"data": {"source": "MRPS9", "target": "MRPS14", "layer": "ppi"}}, {"data": {"source": "PNO1", "target": "WDR75", "layer": "ppi"}}, {"data": {"source": "PNO1", "target": "NOL10", "layer": "ppi"}}, {"data": {"source": "CENPS", "target": "CENPL", "layer": "ppi"}}, {"data": {"source": "WDR75", "target": "NOL10", "layer": "ppi"}}, {"data": {"source": "MOB4", "target": "TRAF3IP3", "layer": "ppi"}}, {"data": {"source": "INTS3", "target": "ZNF687", "layer": "ppi"}}, {"data": {"source": "INTS3", "target": "INTS7", "layer": "ppi"}}, {"data": {"source": "INTS3", "target": "INTS11", "layer": "ppi"}}, {"data": {"source": "MRPL20", "target": "MRPS15", "layer": "ppi"}}, {"data": {"source": "MRPL20", "target": "MRPS14", "layer": "ppi"}}, {"data": {"source": "NCKAP1", "target": "WASF2", "layer": "ppi"}}, {"data": {"source": "EPRS", "target": "YARS", "layer": "ppi"}}, {"data": {"source": "INTS7", "target": "INTS11", "layer": "ppi"}}, {"data": {"source": "KDM4A", "target": "HIST2H4B", "layer": "ppi"}}, {"data": {"source": "MRPS15", "target": "MRPS14", "layer": "ppi"}}, {"data": {"source": "CDK11A", "target": "CCNL2", "layer": "ppi"}}, {"data": {"source": "hsa-miR-9*", "target": "HIST2H4B", "layer": "mirna"}}, {"data": {"source": "hsa-miR-34a-5p", "target": "KDM4A", "layer": "mirna"}}, {"data": {"source": "hsa-miR-125b-5p", "target": "HIST2H4B", "layer": "mirna"}}, {"data": {"source": "hsa-miR-146;hsa-miR-146a", "target": "WASF2", "layer": "mirna"}}, {"data": {"source": "hsa-miR-34c-3p", "target": "NCKAP1", "layer": "mirna"}}, {"data": {"source": "tRNA(Tyr)", "target": "YARS", "layer": "metabolite"}}, {"data": {"source": "L-Tyrosyl-tRNA(Tyr)", "target": "YARS", "layer": "metabolite"}}, {"data": {"source": "Tyrosine", "target": "YARS", "layer": "metabolite"}}, {"data": {"source": "Protein", "target": "CDK11A", "layer": "metabolite"}}, {"data": {"source": "alpha-Ketoglutaric acid", "target": "KDM4A", "layer": "metabolite"}}, {"data": {"source": "Protein N6,N6,N6-trimethyl-L-lysine", "target": "KDM4A", "layer": "metabolite"}}, {"data": {"source": "Protein N6,N6-dimethyl-L-lysine", "target": "KDM4A", "layer": "metabolite"}}, {"data": {"source": "Formalin", "target": "KDM4A", "layer": "metabolite"}}, {"data": {"source": "Ethylenesuccinic acid", "target": "KDM4A", "layer": "metabolite"}}, {"data": {"source": "Protein N6-methyl-L-lysine", "target": "KDM4A", "layer": "metabolite"}}, {"data": {"source": "tRNA(Pro)", "target": "EPRS", "layer": "metabolite"}}, {"data": {"source": "L-Glutamyl-tRNA(Glu)", "target": "EPRS", "layer": "metabolite"}}, {"data": {"source": "tRNA(Glu)", "target": "EPRS", "layer": "metabolite"}}, {"data": {"source": "L-Prolyl-tRNA(Pro)", "target": "EPRS", "layer": "metabolite"}}, {"data": {"source": "2-Pyrrolidinecarboxylic acid", "target": "EPRS", "layer": "metabolite"}}, {"data": {"source": "Glutamate", "target": "EPRS", "layer": "metabolite"}}, {"data": {"source": "ATP", "target": "YARS", "layer": "metabolite"}}, {"data": {"source": "ATP", "target": "EPRS", "layer": "metabolite"}}, {"data": {"source": "Diphosphate", "target": "YARS", "layer": "metabolite"}}, {"data": {"source": "Diphosphate", "target": "EPRS", "layer": "metabolite"}}, {"data": {"source": "AMP", "target": "YARS", "layer": "metabolite"}}, {"data": {"source": "AMP", "target": "EPRS", "layer": "metabolite"}}, {"data": {"source": "FOS", "target": "KDM4A", "layer": "tf"}}, {"data": {"source": "FOS", "target": "INTS7", "layer": "tf"}}, {"data": {"source": "FOS", "target": "NCKAP1", "layer": "tf"}}, {"data": {"source": "FOS", "target": "WASF2", "layer": "tf"}}, {"data": {"source": "FOS", "target": "EPRS", "layer": "tf"}}, {"data": {"source": "FOS", "target": "MRPS15", "layer": "tf"}}, {"data": {"source": "FOS", "target": "YARS", "layer": "tf"}}, {"data": {"source": "FOS", "target": "CCNL2", "layer": "tf"}}, {"data": {"source": "FOS", "target": "INTS3", "layer": "tf"}}, {"data": {"source": "FOS", "target": "NOL10", "layer": "tf"}}, {"data": {"source": "FOS", "target": "TRAF3IP3", "layer": "tf"}}, {"data": {"source": "FOS", "target": "ZNF687", "layer": "tf"}}, {"data": {"source": "FOS", "target": "MRPS14", "layer": "tf"}}, {"data": {"source": "FOS", "target": "WDR75", "layer": "tf"}}, {"data": {"source": "FOS", "target": "INTS11", "layer": "tf"}}, {"data": {"source": "EGR1", "target": "KDM4A", "layer": "tf"}}, {"data": {"source": "EGR1", "target": "WASF2", "layer": "tf"}}, {"data": {"source": "EGR1", "target": "EPRS", "layer": "tf"}}, {"data": {"source": "EGR1", "target": "CCNL2", "layer": "tf"}}, {"data": {"source": "EGR1", "target": "INTS3", "layer": "tf"}}, {"data": {"source": "EGR1", "target": "MOB4", "layer": "tf"}}, {"data": {"source": "EGR1", "target": "MRPS9", "layer": "tf"}}, {"data": {"source": "EGR1", "target": "NOL10", "layer": "tf"}}, {"data": {"source": "EGR1", "target": "ZNF687", "layer": "tf"}}, {"data": {"source": "EGR1", "target": "MRPS14", "layer": "tf"}}, {"data": {"source": "EGR1", "target": "INTS11", "layer": "tf"}}, {"data": {"source": "ESR1", "target": "WASF2", "layer": "tf"}}, {"data": {"source": "ESR1", "target": "CDK11A", "layer": "tf"}}, {"data": {"source": "ESR1", "target": "YARS", "layer": "tf"}}, {"data": {"source": "ESR1", "target": "CCNL2", "layer": "tf"}}, {"data": {"source": "ESR1", "target": "MRPS9", "layer": "tf"}}, {"data": {"source": "ESR1", "target": "NOL10", "layer": "tf"}}, {"data": {"source": "ESR1", "target": "ZNF687", "layer": "tf"}}, {"data": {"source": "ESR1", "target": "MRPL20", "layer": "tf"}}, {"data": {"source": "ESR1", "target": "WDR75", "layer": "tf"}}, {"data": {"source": "ESR1", "target": "INTS11", "layer": "tf"}}, {"data": {"source": "E2F4", "target": "KDM4A", "layer": "tf"}}, {"data": {"source": "E2F4", "target": "INTS7", "layer": "tf"}}, {"data": {"source": "E2F4", "target": "CDK11A", "layer": "tf"}}, {"data": {"source": "E2F4", "target": "EPRS", "layer": "tf"}}, {"data": {"source": "E2F4", "target": "CCNL2", "layer": "tf"}}, {"data": {"source": "E2F4", "target": "CENPL", "layer": "tf"}}, {"data": {"source": "E2F4", "target": "MOB4", "layer": "tf"}}, {"data": {"source": "E2F4", "target": "TRAF3IP3", "layer": "tf"}}, {"data": {"source": "E2F4", "target": "ZNF687", "layer": "tf"}}, {"data": {"source": "E2F4", "target": "CENPS", "layer": "tf"}}, {"data": {"source": "E2F4", "target": "MRPL20", "layer": "tf"}}, {"data": {"source": "E2F4", "target": "INTS11", "layer": "tf"}}, {"data": {"source": "ETS1", "target": "KDM4A", "layer": "tf"}}, {"data": {"source": "ETS1", "target": "WASF2", "layer": "tf"}}, {"data": {"source": "ETS1", "target": "CDK11A", "layer": "tf"}}, {"data": {"source": "ETS1", "target": "EPRS", "layer": "tf"}}, {"data": {"source": "ETS1", "target": "MRPS15", "layer": "tf"}}, {"data": {"source": "ETS1", "target": "CCNL2", "layer": "tf"}}, {"data": {"source": "ETS1", "target": "INTS3", "layer": "tf"}}, {"data": {"source": "ETS1", "target": "MOB4", "layer": "tf"}}, {"data": {"source": "ETS1", "target": "MRPS9", "layer": "tf"}}, {"data": {"source": "ETS1", "target": "NOL10", "layer": "tf"}}, {"data": {"source": "ETS1", "target": "TRAF3IP3", "layer": "tf"}}, {"data": {"source": "ETS1", "target": "ZNF687", "layer": "tf"}}, {"data": {"source": "ETS1", "target": "CENPS", "layer": "tf"}}, {"data": {"source": "ETS1", "target": "MRPL20", "layer": "tf"}}, {"data": {"source": "ETS1", "target": "MRPS14", "layer": "tf"}}, {"data": {"source": "ETS1", "target": "WDR75", "layer": "tf"}}, {"data": {"source": "ETS1", "target": "INTS11", "layer": "tf"}}, {"data": {"source": "HNF4A", "target": "INTS7", "layer": "tf"}}, {"data": {"source": "HNF4A", "target": "NCKAP1", "layer": "tf"}}, {"data": {"source": "HNF4A", "target": "WASF2", "layer": "tf"}}, {"data": {"source": "HNF4A", "target": "CDK11A", "layer": "tf"}}, {"data": {"source": "HNF4A", "target": "MRPS15", "layer": "tf"}}, {"data": {"source": "HNF4A", "target": "CCNL2", "layer": "tf"}}, {"data": {"source": "HNF4A", "target": "INTS3", "layer": "tf"}}, {"data": {"source": "HNF4A", "target": "MOB4", "layer": "tf"}}, {"data": {"source": "HNF4A", "target": "NOL10", "layer": "tf"}}, {"data": {"source": "HNF4A", "target": "ZNF687", "layer": "tf"}}, {"data": {"source": "HNF4A", "target": "CENPS", "layer": "tf"}}, {"data": {"source": "HNF4A", "target": "MRPL20", "layer": "tf"}}, {"data": {"source": "HNF4A", "target": "WDR75", "layer": "tf"}}, {"data": {"source": "STAT1", "target": "KDM4A", "layer": "tf"}}, {"data": {"source": "STAT1", "target": "INTS7", "layer": "tf"}}, {"data": {"source": "STAT1", "target": "NCKAP1", "layer": "tf"}}, {"data": {"source": "STAT1", "target": "WASF2", "layer": "tf"}}, {"data": {"source": "STAT1", "target": "CDK11A", "layer": "tf"}}, {"data": {"source": "STAT1", "target": "EPRS", "layer": "tf"}}, {"data": {"source": "STAT1", "target": "YARS", "layer": "tf"}}, {"data": {"source": "STAT1", "target": "MRPS9", "layer": "tf"}}, {"data": {"source": "STAT1", "target": "NOL10", "layer": "tf"}}, {"data": {"source": "STAT1", "target": "ZNF687", "layer": "tf"}}, {"data": {"source": "STAT1", "target": "MRPS14", "layer": "tf"}}, {"data": {"source": "STAT1", "target": "WDR75", "layer": "tf"}}, {"data": {"source": "CTCF", "target": "KDM4A", "layer": "tf"}}, {"data": {"source": "CTCF", "target": "INTS7", "layer": "tf"}}, {"data": {"source": "CTCF", "target": "NCKAP1", "layer": "tf"}}, {"data": {"source": "CTCF", "target": "WASF2", "layer": "tf"}}, {"data": {"source": "CTCF", "target": "EPRS", "layer": "tf"}}, {"data": {"source": "CTCF", "target": "CCNL2", "layer": "tf"}}, {"data": {"source": "CTCF", "target": "INTS3", "layer": "tf"}}, {"data": {"source": "CTCF", "target": "MRPS9", "layer": "tf"}}, {"data": {"source": "CTCF", "target": "NOL10", "layer": "tf"}}, {"data": {"source": "CTCF", "target": "TRAF3IP3", "layer": "tf"}}, {"data": {"source": "CTCF", "target": "CENPS", "layer": "tf"}}, {"data": {"source": "CTCF", "target": "MRPL20", "layer": "tf"}}, {"data": {"source": "CTCF", "target": "MRPS14", "layer": "tf"}}, {"data": {"source": "CTCF", "target": "PNO1", "layer": "tf"}}, {"data": {"source": "CTCF", "target": "WDR75", "layer": "tf"}}, {"data": {"source": "CEBPA", "target": "KDM4A", "layer": "tf"}}, {"data": {"source": "CEBPA", "target": "INTS7", "layer": "tf"}}, {"data": {"source": "CEBPA", "target": "NCKAP1", "layer": "tf"}}, {"data": {"source": "CEBPA", "target": "WASF2", "layer": "tf"}}, {"data": {"source": "CEBPA", "target": "MRPS15", "layer": "tf"}}, {"data": {"source": "CEBPA", "target": "YARS", "layer": "tf"}}, {"data": {"source": "CEBPA", "target": "CCNL2", "layer": "tf"}}, {"data": {"source": "CEBPA", "target": "CENPL", "layer": "tf"}}, {"data": {"source": "CEBPA", "target": "INTS3", "layer": "tf"}}, {"data": {"source": "CEBPA", "target": "MOB4", "layer": "tf"}}, {"data": {"source": "CEBPA", "target": "MRPS9", "layer": "tf"}}, {"data": {"source": "CEBPA", "target": "NOL10", "layer": "tf"}}, {"data": {"source": "CEBPA", "target": "TRAF3IP3", "layer": "tf"}}, {"data": {"source": "CEBPA", "target": "ZNF687", "layer": "tf"}}, {"data": {"source": "MITF", "target": "KDM4A", "layer": "tf"}}, {"data": {"source": "MITF", "target": "NCKAP1", "layer": "tf"}}, {"data": {"source": "MITF", "target": "WASF2", "layer": "tf"}}, {"data": {"source": "MITF", "target": "MRPS15", "layer": "tf"}}, {"data": {"source": "MITF", "target": "YARS", "layer": "tf"}}, {"data": {"source": "MITF", "target": "INTS3", "layer": "tf"}}, {"data": {"source": "MITF", "target": "MRPS9", "layer": "tf"}}, {"data": {"source": "MITF", "target": "TRAF3IP3", "layer": "tf"}}, {"data": {"source": "MITF", "target": "PNO1", "layer": "tf"}}, {"data": {"source": "FOXA1", "target": "KDM4A", "layer": "tf"}}, {"data": {"source": "FOXA1", "target": "INTS7", "layer": "tf"}}, {"data": {"source": "FOXA1", "target": "NCKAP1", "layer": "tf"}}, {"data": {"source": "FOXA1", "target": "WASF2", "layer": "tf"}}, {"data": {"source": "FOXA1", "target": "EPRS", "layer": "tf"}}, {"data": {"source": "FOXA1", "target": "INTS3", "layer": "tf"}}, {"data": {"source": "FOXA1", "target": "MRPS9", "layer": "tf"}}, {"data": {"source": "FOXA1", "target": "NOL10", "layer": "tf"}}, {"data": {"source": "FOXA1", "target": "ZNF687", "layer": "tf"}}, {"data": {"source": "FOXA1", "target": "CENPS", "layer": "tf"}}, {"data": {"source": "FOXA1", "target": "MRPS14", "layer": "tf"}}, {"data": {"source": "FOXA1", "target": "WDR75", "layer": "tf"}}, {"data": {"source": "TFAP2C", "target": "KDM4A", "layer": "tf"}}, {"data": {"source": "TFAP2C", "target": "INTS7", "layer": "tf"}}, {"data": {"source": "TFAP2C", "target": "MRPS9", "layer": "tf"}}, {"data": {"source": "TFAP2C", "target": "NOL10", "layer": "tf"}}, {"data": {"source": "TFAP2C", "target": "TRAF3IP3", "layer": "tf"}}, {"data": {"source": "TFAP2C", "target": "ZNF687", "layer": "tf"}}, {"data": {"source": "TFAP2C", "target": "CENPS", "layer": "tf"}}, {"data": {"source": "TFAP2C", "target": "MRPS14", "layer": "tf"}}, {"data": {"source": "TFAP2C", "target": "WDR75", "layer": "tf"}}];
+
+const layerColors = {
+  gene:       '#5eead4',
+  tf:         '#fbbf24',
+  mirna:      '#a78bfa',
+  metabolite: '#34d399'
+};
+const edgeColors = {
+  ppi:        '#5eead4',
+  tf:         '#fb923c',
+  mirna:      '#c084fc',
+  metabolite: '#6ee7b7'
+};
+
+const cy = cytoscape({
+  container: document.getElementById('cy'),
+  elements: elements,
+  style: [
+    {
+      selector: 'node',
+      style: {
+        'background-color': (n) => {
+          const stab = n.data('stability');
+          if (stab === '100') return '#f87171';
+          if (stab === 'high') return '#fb923c';
+          return layerColors[n.data('layer')] || '#94a3b8';
+        },
+        'border-width': (n) => {
+          const stab = n.data('stability');
+          return (stab === '100' || stab === 'high') ? 3 : 1.5;
+        },
+        'border-color': (n) => {
+          const stab = n.data('stability');
+          if (stab === '100') return '#fbbf24';
+          if (stab === 'high') return '#fb923c';
+          return layerColors[n.data('layer')] || '#475569';
+        },
+        'label': 'data(label)',
+        'color': '#e2e8f0',
+        'font-size': (n) => {
+          const layer = n.data('layer');
+          if (layer === 'gene') return 11;
+          if (layer === 'tf')   return 10;
+          return 9;
+        },
+        'text-valign': 'bottom',
+        'text-halign': 'center',
+        'text-margin-y': 4,
+        'text-outline-color': '#0f172a',
+        'text-outline-width': 2,
+        'width': (n) => {
+          const layer = n.data('layer');
+          const stab  = n.data('stability');
+          if (stab === '100') return 36;
+          if (stab === 'high') return 30;
+          if (layer === 'gene') return 26;
+          if (layer === 'tf')   return 22;
+          return 18;
+        },
+        'height': (n) => {
+          const layer = n.data('layer');
+          const stab  = n.data('stability');
+          if (stab === '100') return 36;
+          if (stab === 'high') return 30;
+          if (layer === 'gene') return 26;
+          if (layer === 'tf')   return 22;
+          return 18;
+        },
+        'shape': (n) => {
+          const layer = n.data('layer');
+          if (layer === 'tf')         return 'diamond';
+          if (layer === 'mirna')      return 'triangle';
+          if (layer === 'metabolite') return 'round-rectangle';
+          return 'ellipse';
+        }
+      }
+    },
+    {
+      selector: 'edge',
+      style: {
+        'line-color':    (e) => edgeColors[e.data('layer')] || '#475569',
+        'target-arrow-color': (e) => edgeColors[e.data('layer')] || '#475569',
+        'target-arrow-shape': (e) => e.data('layer') === 'ppi' ? 'none' : 'triangle',
+        'curve-style':   'bezier',
+        'width':         1.2,
+        'opacity':       0.55
+      }
+    },
+    {
+      selector: 'node:selected',
+      style: {
+        'border-width': 4,
+        'border-color': '#ffffff',
+        'opacity': 1
+      }
+    },
+    {
+      selector: 'edge:selected',
+      style: { 'width': 3, 'opacity': 1 }
+    }
+  ],
+  layout: { name: 'concentric',
+             concentric: (n) => {
+               const order = { gene: 4, tf: 3, mirna: 2, metabolite: 1 };
+               return order[n.data('layer')] || 1;
+             },
+             levelWidth: () => 4,
+             padding: 60,
+             minNodeSpacing: 20 }
+});
+
+// ── Tooltip ───────────────────────────────────────────────────────────────────
+const tip = document.getElementById('tooltip');
+cy.on('mouseover', 'node', function(e) {
+  const n = e.target;
+  const d = n.data();
+  const layerLabel = { gene: 'Candidate gene', tf: 'Transcription factor',
+                        mirna: 'miRNA', metabolite: 'Metabolite' };
+  const stab = d.stability
+    ? `<br><b>Stability:</b> ${d.stability === '100' ? '100% (sPLS-DA)' :
+                               d.stability === 'high' ? 'High (≥89%)' : 'Candidate'}`
+    : '';
+  const deg = n.degree(false);
+  tip.innerHTML = `<b>${d.label}</b><br><b>Layer:</b> ${layerLabel[d.layer] || d.layer}${stab}<br><b>Edges:</b> ${deg}`;
+  tip.style.display = 'block';
+});
+cy.on('mousemove', function(e) {
+  const pos = e.renderedPosition || e.position;
+  const cont = document.getElementById('cy').getBoundingClientRect();
+  tip.style.left = (cont.left + pos.x + 14) + 'px';
+  tip.style.top  = (cont.top  + pos.y - 10) + 'px';
+});
+cy.on('mouseout', 'node', () => tip.style.display = 'none');
+
+// ── Highlight neighbours on click ────────────────────────────────────────────
+cy.on('tap', 'node', function(e) {
+  const node  = e.target;
+  const nb    = node.closedNeighborhood();
+  const rest  = cy.elements().not(nb);
+  rest.style('opacity', 0.15);
+  nb.style('opacity', 1);
+});
+cy.on('tap', function(e) {
+  if (e.target === cy) cy.elements().style('opacity', 1);
+});
+
+// ── Layout selector ───────────────────────────────────────────────────────────
+function runLayout() {
+  const val = document.getElementById('layoutSel').value;
+  const opts = {
+    cose:        { name: 'cose', animate: true, nodeRepulsion: 8000,
+                   idealEdgeLength: 80, edgeElasticity: 0.45, padding: 40 },
+    concentric:  { name: 'concentric',
+                   concentric: (n) => {
+                     const order = { gene: 4, tf: 3, mirna: 2, metabolite: 1 };
+                     return order[n.data('layer')] || 1;
+                   },
+                   levelWidth: () => 4, padding: 60, minNodeSpacing: 20 },
+    grid:        { name: 'grid', padding: 40, rows: 6 },
+    breadthfirst:{ name: 'breadthfirst', roots: cy.nodes('[layer = "gene"]'),
+                   padding: 40, spacingFactor: 1.2 }
+  };
+  cy.layout(opts[val] || opts.cose).run();
+}
+
+// ── Edge filter ───────────────────────────────────────────────────────────────
+function filterEdges() {
+  const val = document.getElementById('edgeSel').value;
+  cy.edges().forEach(e => {
+    e.style('display', val === 'all' || e.data('layer') === val ? 'element' : 'none');
+  });
+}
+</script>
+</body>
+</html>
