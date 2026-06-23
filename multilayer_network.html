@@ -93,6 +93,7 @@ const edgeColors = {
 
 const cy = cytoscape({
   container: document.getElementById('cy'),
+  pixelRatio: window.devicePixelRatio || 2,
   elements: elements,
   style: [
     {
@@ -115,18 +116,21 @@ const cy = cytoscape({
           return layerColors[n.data('layer')] || '#475569';
         },
         'label': 'data(label)',
-        'color': '#e2e8f0',
+        'color': '#1e293b',
         'font-size': (n) => {
           const layer = n.data('layer');
-          if (layer === 'gene') return 11;
-          if (layer === 'tf')   return 10;
-          return 9;
+          if (layer === 'gene') return 14;
+          if (layer === 'tf')   return 13;
+          return 12;
         },
+        'font-weight': (n) => n.data('layer') === 'gene' ? 'bold' : 'normal',
         'text-valign': 'bottom',
         'text-halign': 'center',
-        'text-margin-y': 4,
-        'text-outline-color': '#0f172a',
-        'text-outline-width': 2,
+        'text-margin-y': 5,
+        'text-background-color': '#f8fafc',
+        'text-background-opacity': 0.85,
+        'text-background-padding': '3px',
+        'text-background-shape': 'roundrectangle',
         'width': (n) => {
           const layer = n.data('layer');
           const stab  = n.data('stability');

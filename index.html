@@ -976,81 +976,71 @@
 <!-- ═══════════════════════════════════════════════ TAB: INTERACTION NETWORK -->
 <div id="tab-network" class="tab-panel" style="max-width:100%;padding:0;">
 
-  <!-- Review banner -->
-  <div style="max-width:980px;margin:0 auto;padding:22px 20px 0;">
-    <p class="section-title">Multi-layer Interaction Network</p>
-
-    <div style="background:#fffbeb;border:1px solid #f59e0b;border-left:5px solid #f59e0b;
-                border-radius:8px;padding:16px 20px;margin-bottom:18px;">
-      <p style="font-size:13px;font-weight:700;color:#92400e;margin-bottom:8px;">
-        &#9888; Filtering decisions — expert review requested
-      </p>
-      <p style="font-size:13px;color:#78350f;line-height:1.6;">
-        The network below was automatically filtered from raw OmicsNet 2.0 output. The following
-        decisions were made algorithmically and require biological validation before use in any
-        publication or presentation:
-      </p>
-      <ul style="font-size:13px;color:#78350f;line-height:1.7;margin:10px 0 0 18px;">
-        <li><strong>Gene–gene (PPI):</strong> Used the <em>candidate-only</em> network (19 edges,
-          no external partners). The expanded network with external partners (2,483 edges) was
-          excluded to keep the backbone tight. <em>Should external first-degree interactors be
-          included?</em></li>
-        <li><strong>TF regulators:</strong> Of 441 TFs in the full network, only the <strong>top 12
-          by number of candidate-gene targets</strong> were kept (ETS1, FOS, CTCF, CEBPA, HNF4A,
-          FOXA1, STAT1, E2F4, EGR1, ESR1, MITF, TFAP2C). No biological relevance criterion was
-          applied. <em>Are all these TFs relevant to placental biology / PE / PTD?
-          Should any be removed or substituted?</em></li>
-        <li><strong>miRNA:</strong> Only 5 miRNAs that directly target a backbone candidate gene
-          were retained. The full miRNA network (138 miRNAs, 187 edges) includes many miRNAs
-          whose target genes are <em>external</em> partners — these were excluded.
-          <em>Should any external-target miRNAs be added?</em></li>
-        <li><strong>Metabolites:</strong> Of 230 metabolites in the OmicsNet output, only the
-          19 that connect to a backbone candidate gene were kept. Many generic metabolites
-          (ATP, ADP, CoA, H₂O…) appear in the full set — <em>should these be filtered out
-          explicitly, and are the remaining 19 biologically meaningful in this context?</em></li>
-      </ul>
-      <p style="font-size:12px;color:#92400e;margin-top:10px;">
-        The builder script is at
-        <code style="background:#fef3c7;padding:1px 5px;border-radius:3px;">
-          transcriptomics_engine/build_multilayer_network.py</code> —
-        parameters <code>TOP_TF_N</code> and the backbone-only vs. expanded PPI switch
-        can be adjusted once the filtering decisions are agreed.
-      </p>
+  <!-- Compact header bar -->
+  <div style="max-width:100%;padding:10px 20px 8px;display:flex;align-items:center;
+              justify-content:space-between;flex-wrap:wrap;gap:8px;border-bottom:1px solid var(--border);">
+    <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+      <span style="font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);">
+        Multi-layer Interaction Network
+      </span>
+      <!-- inline legend -->
+      <span style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--muted);">
+        <span style="width:10px;height:10px;border-radius:50%;background:#5eead4;display:inline-block;"></span>Gene
+      </span>
+      <span style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--muted);">
+        <span style="width:10px;height:10px;background:#fbbf24;display:inline-block;transform:rotate(45deg);"></span>TF
+      </span>
+      <span style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--muted);">
+        <span style="width:10px;height:10px;background:#a78bfa;clip-path:polygon(50% 0%,0% 100%,100% 100%);display:inline-block;"></span>miRNA
+      </span>
+      <span style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--muted);">
+        <span style="width:10px;height:10px;border-radius:2px;background:#34d399;display:inline-block;"></span>Metabolite
+      </span>
+      <span style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--muted);">
+        <span style="width:10px;height:10px;border-radius:50%;background:#f87171;border:2px solid #fbbf24;display:inline-block;"></span>100% stable
+      </span>
     </div>
+    <button onclick="toggleNetReview()"
+      style="font-size:11px;padding:3px 10px;background:#fffbeb;color:#92400e;
+             border:1px solid #f59e0b;border-radius:4px;cursor:pointer;white-space:nowrap;">
+      &#9888; Filtering notes
+    </button>
+  </div>
 
-    <!-- Layer legend -->
-    <div style="display:flex;flex-wrap:wrap;gap:14px;margin-bottom:14px;font-size:13px;">
-      <span style="display:flex;align-items:center;gap:7px;">
-        <span style="width:14px;height:14px;border-radius:50%;background:#5eead4;flex-shrink:0;display:inline-block;"></span>
-        Candidate gene (backbone PPI — 23 nodes)
-      </span>
-      <span style="display:flex;align-items:center;gap:7px;">
-        <span style="width:14px;height:14px;background:#fbbf24;clip-path:polygon(50% 0,100% 100%,0 100%);flex-shrink:0;display:inline-block;transform:rotate(180deg)"></span>
-        TF regulator (top 12 by coverage)
-      </span>
-      <span style="display:flex;align-items:center;gap:7px;">
-        <span style="width:14px;height:14px;background:#a78bfa;clip-path:polygon(50% 0%,0% 100%,100% 100%);flex-shrink:0;display:inline-block;"></span>
-        miRNA (targeting backbone genes)
-      </span>
-      <span style="display:flex;align-items:center;gap:7px;">
-        <span style="width:14px;height:14px;border-radius:3px;background:#34d399;flex-shrink:0;display:inline-block;"></span>
-        Metabolite (connected to backbone genes)
-      </span>
-      <span style="display:flex;align-items:center;gap:7px;">
-        <span style="width:14px;height:14px;border-radius:50%;background:#f87171;border:2px solid #fbbf24;flex-shrink:0;display:inline-block;"></span>
-        100% stable (sPLS-DA Scenario A)
-      </span>
+  <!-- Collapsible review panel (hidden by default) -->
+  <div id="netReviewPanel" style="display:none;max-width:980px;margin:0 auto;padding:14px 20px 0;">
+    <div style="background:#fffbeb;border:1px solid #f59e0b;border-left:5px solid #f59e0b;
+                border-radius:8px;padding:14px 18px;margin-bottom:12px;">
+      <p style="font-size:12px;font-weight:700;color:#92400e;margin-bottom:6px;">
+        &#9888; Filtering decisions — expert review requested before publication
+      </p>
+      <ul style="font-size:12px;color:#78350f;line-height:1.7;margin-left:16px;">
+        <li><strong>PPI:</strong> Candidate-only (19 edges). Expanded network (2,483 edges with external partners) excluded. <em>Include first-degree interactors?</em></li>
+        <li><strong>TF:</strong> Top 12 by backbone-gene coverage kept (ETS1, FOS, CTCF, CEBPA, HNF4A, FOXA1, STAT1, E2F4, EGR1, ESR1, MITF, TFAP2C) — no biological filter applied. <em>Relevant to placental biology / PE / PTD?</em></li>
+        <li><strong>miRNA:</strong> 5 retained (directly target backbone genes). 133 others target external partners only — excluded. <em>Add any?</em></li>
+        <li><strong>Metabolites:</strong> 19 of 230 kept (those connecting to backbone genes). Includes generic cofactors (ATP, ADP, Diphosphate…). <em>Filter these out?</em></li>
+      </ul>
+      <p style="font-size:11px;color:#92400e;margin-top:8px;">
+        Script: <code style="background:#fef3c7;padding:1px 4px;border-radius:3px;">build_multilayer_network.py</code>
+        — adjust <code>TOP_TF_N</code> or PPI mode once decisions are agreed.
+      </p>
     </div>
   </div>
 
-  <!-- Embedded network (full-width iframe) -->
+  <!-- Embedded network -->
   <iframe
     src="multilayer_network.html"
-    style="width:100%;height:680px;border:none;display:block;"
+    style="width:100%;height:calc(100vh - 160px);min-height:520px;border:none;display:block;"
     title="Multi-layer OmicsNet interaction network"
     loading="lazy">
   </iframe>
 
+  <script>
+  function toggleNetReview() {
+    const p = document.getElementById('netReviewPanel');
+    p.style.display = p.style.display === 'none' ? 'block' : 'none';
+  }
+  </script>
 </div>
 
 <!-- ═══════════════════════════════════════════════ TAB: SUMMARY -->
