@@ -438,27 +438,29 @@ function filterEdges() {
 // ── Layout ────────────────────────────────────────────────────────────────────
 function applyLayout() {
   const type = document.getElementById('layoutSel').value;
-  sim.stop();
 
   if (type === 'force') {
     nodes.forEach(d => { d.fx = null; d.fy = null; });
     sim.alpha(0.8).restart();
     return;
   }
+
+  // Static layouts — stop simulation, set x/y directly, no release
+  sim.stop();
+
   if (type === 'grid') {
     const order = ['gene','tf','mirna','metabolite'];
     const byL   = Object.fromEntries(order.map(l => [l, nodes.filter(n => n.layer === l)]));
     const rowH  = H / (order.length + 1);
     order.forEach((layer, li) => {
       byL[layer].forEach((n, i) => {
-        n.fx = (W / (byL[layer].length + 1)) * (i + 1);
-        n.fy = rowH * (li + 1);
+        n.x  = (W / (byL[layer].length + 1)) * (i + 1);
+        n.y  = rowH * (li + 1);
+        n.vx = 0; n.vy = 0;
       });
     });
-    sim.alpha(0.4).restart();
-    setTimeout(() => { nodes.forEach(n => { n.fx = null; n.fy = null; }); sim.alphaTarget(0); }, 900);
-    return;
   }
+
   if (type === 'concentric') {
     const radii = { gene: H*0.20, tf: H*0.36, mirna: H*0.43, metabolite: H*0.50 };
     ['gene','tf','mirna','metabolite'].forEach(layer => {
@@ -466,13 +468,18 @@ function applyLayout() {
       const r   = radii[layer];
       grp.forEach((n, i) => {
         const a = (2*Math.PI*i/grp.length) - Math.PI/2;
-        n.fx = W/2 + r*Math.cos(a);
-        n.fy = H/2 + r*Math.sin(a);
+        n.x  = W/2 + r*Math.cos(a);
+        n.y  = H/2 + r*Math.sin(a);
+        n.vx = 0; n.vy = 0;
       });
     });
-    sim.alpha(0.4).restart();
-    setTimeout(() => { nodes.forEach(n => { n.fx = null; n.fy = null; }); sim.alphaTarget(0); }, 900);
   }
+
+  // Update DOM immediately without running the simulation
+  linkSel
+    .attr('x1', d => d.source.x).attr('y1', d => d.source.y)
+    .attr('x2', d => d.target.x).attr('y2', d => d.target.y);
+  nodeSel.attr('transform', d => `translate(${d.x},${d.y})`);
 }
 
 function resetZoom() {
