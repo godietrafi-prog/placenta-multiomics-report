@@ -6,6 +6,7 @@
 <title>PE/PTD Multi-Omics Report</title>
 <!-- published 2026-06-16 -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
 <style>
   :root {
     --navy: #1e3a5f;
@@ -1027,18 +1028,307 @@
     </div>
   </div>
 
-  <!-- Embedded network -->
-  <iframe
-    src="multilayer_network.html"
-    style="width:100%;height:calc(100vh - 160px);min-height:520px;border:none;display:block;"
-    title="Multi-layer OmicsNet interaction network"
-    loading="lazy">
-  </iframe>
+  <!-- Network controls bar -->
+  <div style="display:flex;align-items:center;gap:10px;padding:6px 20px;
+              background:#111827;border-bottom:1px solid #1e293b;flex-wrap:wrap;">
+    <label style="font-size:12px;color:#94a3b8;">Layout:</label>
+    <select id="netLayoutSel" style="font-size:12px;padding:3px 8px;background:#1e293b;
+            color:#e2e8f0;border:1px solid #334155;border-radius:4px;cursor:pointer;">
+      <option value="force" selected>Force-directed</option>
+      <option value="grid">Grid (by layer)</option>
+      <option value="concentric">Concentric (by layer)</option>
+    </select>
+    <button onclick="netApplyLayout()"
+      style="font-size:12px;padding:3px 10px;background:#1e293b;color:#e2e8f0;
+             border:1px solid #334155;border-radius:4px;cursor:pointer;">Apply</button>
+    <button onclick="netResetZoom()"
+      style="font-size:12px;padding:3px 10px;background:#1e293b;color:#e2e8f0;
+             border:1px solid #334155;border-radius:4px;cursor:pointer;">Fit view</button>
+    <label style="font-size:12px;color:#94a3b8;margin-left:12px;">Show edges:</label>
+    <select id="netEdgeSel" onchange="netFilterEdges()"
+      style="font-size:12px;padding:3px 8px;background:#1e293b;color:#e2e8f0;
+             border:1px solid #334155;border-radius:4px;cursor:pointer;">
+      <option value="all">All layers</option>
+      <option value="ppi">PPI only</option>
+      <option value="tf">TF → Gene only</option>
+      <option value="mirna">miRNA → Gene only</option>
+      <option value="metabolite">Metabolite → Gene only</option>
+    </select>
+    <button onclick="netClearHighlight()"
+      style="font-size:12px;padding:3px 10px;background:#1e293b;color:#e2e8f0;
+             border:1px solid #334155;border-radius:4px;cursor:pointer;margin-left:6px;">Clear selection</button>
+  </div>
+
+  <!-- Inline SVG network -->
+  <div id="net-svg-wrap" style="width:100%;height:calc(100vh - 200px);min-height:500px;background:#0f172a;position:relative;">
+    <svg id="net-svg" style="width:100%;height:100%;">
+      <defs>
+        <marker id="net-arrow-tf"         markerWidth="8" markerHeight="8" refX="18" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#fb923c"/></marker>
+        <marker id="net-arrow-mirna"      markerWidth="8" markerHeight="8" refX="18" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#c084fc"/></marker>
+        <marker id="net-arrow-metabolite" markerWidth="8" markerHeight="8" refX="18" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#6ee7b7"/></marker>
+      </defs>
+      <g id="net-zoom-g">
+        <g id="net-links-g"></g>
+        <g id="net-nodes-g"></g>
+      </g>
+    </svg>
+    <div id="net-tooltip" style="position:absolute;display:none;background:#1e293b;border:1px solid #475569;
+         border-radius:6px;padding:8px 12px;font-size:12px;color:#e2e8f0;pointer-events:none;
+         max-width:260px;z-index:99;line-height:1.6;"></div>
+  </div>
 
   <script>
   function toggleNetReview() {
     const p = document.getElementById('netReviewPanel');
     p.style.display = p.style.display === 'none' ? 'block' : 'none';
+  }
+
+  function buildNetwork() {
+    const NET_NODES = [
+      {id:"MRPS15",layer:"gene"},{id:"TRAF3IP3",layer:"gene"},{id:"ZNF687",layer:"gene"},
+      {id:"NCKAP1",layer:"gene"},{id:"EPRS",layer:"gene"},{id:"INTS3",layer:"gene"},
+      {id:"CENPL",layer:"gene"},{id:"HIST2H4B",layer:"gene"},{id:"WDR75",layer:"gene"},
+      {id:"CCNL2",layer:"gene"},{id:"INTS11",layer:"gene"},{id:"MRPS9",layer:"gene"},
+      {id:"MOB4",layer:"gene"},{id:"MRPL20",layer:"gene"},{id:"CENPS",layer:"gene"},
+      {id:"INTS7",layer:"gene"},{id:"KDM4A",layer:"gene"},{id:"NOL10",layer:"gene"},
+      {id:"WASF2",layer:"gene"},{id:"MRPS14",layer:"gene"},{id:"PNO1",layer:"gene"},
+      {id:"YARS",layer:"gene"},{id:"CDK11A",layer:"gene"},
+      {id:"miR-9*",layer:"mirna",full:"hsa-miR-9*"},
+      {id:"miR-34a-5p",layer:"mirna",full:"hsa-miR-34a-5p"},
+      {id:"miR-125b-5p",layer:"mirna",full:"hsa-miR-125b-5p"},
+      {id:"miR-146a",layer:"mirna",full:"hsa-miR-146;hsa-miR-146a"},
+      {id:"miR-34c-3p",layer:"mirna",full:"hsa-miR-34c-3p"},
+      {id:"tRNA(Tyr)",layer:"metabolite"},{id:"Tyr-tRNA",layer:"metabolite",full:"L-Tyrosyl-tRNA(Tyr)"},
+      {id:"Tyrosine",layer:"metabolite"},{id:"Protein",layer:"metabolite"},
+      {id:"alpha-KG",layer:"metabolite",full:"alpha-Ketoglutaric acid"},
+      {id:"N6-triMe-Lys",layer:"metabolite",full:"Protein N6,N6,N6-trimethyl-L-lysine"},
+      {id:"N6-diMe-Lys",layer:"metabolite",full:"Protein N6,N6-dimethyl-L-lysine"},
+      {id:"Formalin",layer:"metabolite"},
+      {id:"Ethylenesuccinate",layer:"metabolite",full:"Ethylenesuccinic acid"},
+      {id:"N6-Me-Lys",layer:"metabolite",full:"Protein N6-methyl-L-lysine"},
+      {id:"tRNA(Pro)",layer:"metabolite"},{id:"Glu-tRNA",layer:"metabolite",full:"L-Glutamyl-tRNA(Glu)"},
+      {id:"tRNA(Glu)",layer:"metabolite"},{id:"Pro-tRNA",layer:"metabolite",full:"L-Prolyl-tRNA(Pro)"},
+      {id:"Pyrrolidine-COOH",layer:"metabolite",full:"2-Pyrrolidinecarboxylic acid"},
+      {id:"Glutamate",layer:"metabolite"},{id:"ATP",layer:"metabolite"},
+      {id:"Diphosphate",layer:"metabolite"},{id:"AMP",layer:"metabolite"},
+      {id:"FOXA1",layer:"tf"},{id:"CTCF",layer:"tf"},{id:"CEBPA",layer:"tf"},
+      {id:"MITF",layer:"tf"},{id:"TFAP2C",layer:"tf"},{id:"ETS1",layer:"tf"},
+      {id:"E2F4",layer:"tf"},{id:"EGR1",layer:"tf"},{id:"ESR1",layer:"tf"},
+      {id:"HNF4A",layer:"tf"},{id:"STAT1",layer:"tf"},{id:"FOS",layer:"tf"},
+    ];
+    const NET_EDGES = [
+      {s:"MRPS9",t:"MRPL20",l:"ppi"},{s:"MRPS9",t:"MRPS15",l:"ppi"},{s:"MRPS9",t:"MRPS14",l:"ppi"},
+      {s:"PNO1",t:"WDR75",l:"ppi"},{s:"PNO1",t:"NOL10",l:"ppi"},{s:"CENPS",t:"CENPL",l:"ppi"},
+      {s:"WDR75",t:"NOL10",l:"ppi"},{s:"MOB4",t:"TRAF3IP3",l:"ppi"},{s:"INTS3",t:"ZNF687",l:"ppi"},
+      {s:"INTS3",t:"INTS7",l:"ppi"},{s:"INTS3",t:"INTS11",l:"ppi"},{s:"MRPL20",t:"MRPS15",l:"ppi"},
+      {s:"MRPL20",t:"MRPS14",l:"ppi"},{s:"NCKAP1",t:"WASF2",l:"ppi"},{s:"EPRS",t:"YARS",l:"ppi"},
+      {s:"INTS7",t:"INTS11",l:"ppi"},{s:"KDM4A",t:"HIST2H4B",l:"ppi"},{s:"MRPS15",t:"MRPS14",l:"ppi"},
+      {s:"CDK11A",t:"CCNL2",l:"ppi"},
+      {s:"miR-9*",t:"HIST2H4B",l:"mirna"},{s:"miR-34a-5p",t:"KDM4A",l:"mirna"},
+      {s:"miR-125b-5p",t:"HIST2H4B",l:"mirna"},{s:"miR-146a",t:"WASF2",l:"mirna"},
+      {s:"miR-34c-3p",t:"NCKAP1",l:"mirna"},
+      {s:"tRNA(Tyr)",t:"YARS",l:"metabolite"},{s:"Tyr-tRNA",t:"YARS",l:"metabolite"},
+      {s:"Tyrosine",t:"YARS",l:"metabolite"},{s:"Protein",t:"CDK11A",l:"metabolite"},
+      {s:"alpha-KG",t:"KDM4A",l:"metabolite"},{s:"N6-triMe-Lys",t:"KDM4A",l:"metabolite"},
+      {s:"N6-diMe-Lys",t:"KDM4A",l:"metabolite"},{s:"Formalin",t:"KDM4A",l:"metabolite"},
+      {s:"Ethylenesuccinate",t:"KDM4A",l:"metabolite"},{s:"N6-Me-Lys",t:"KDM4A",l:"metabolite"},
+      {s:"tRNA(Pro)",t:"EPRS",l:"metabolite"},{s:"Glu-tRNA",t:"EPRS",l:"metabolite"},
+      {s:"tRNA(Glu)",t:"EPRS",l:"metabolite"},{s:"Pro-tRNA",t:"EPRS",l:"metabolite"},
+      {s:"Pyrrolidine-COOH",t:"EPRS",l:"metabolite"},{s:"Glutamate",t:"EPRS",l:"metabolite"},
+      {s:"ATP",t:"YARS",l:"metabolite"},{s:"ATP",t:"EPRS",l:"metabolite"},
+      {s:"Diphosphate",t:"YARS",l:"metabolite"},{s:"Diphosphate",t:"EPRS",l:"metabolite"},
+      {s:"AMP",t:"YARS",l:"metabolite"},{s:"AMP",t:"EPRS",l:"metabolite"},
+      {s:"FOS",t:"KDM4A",l:"tf"},{s:"FOS",t:"INTS7",l:"tf"},{s:"FOS",t:"NCKAP1",l:"tf"},
+      {s:"FOS",t:"WASF2",l:"tf"},{s:"FOS",t:"EPRS",l:"tf"},{s:"FOS",t:"MRPS15",l:"tf"},
+      {s:"FOS",t:"YARS",l:"tf"},{s:"FOS",t:"CCNL2",l:"tf"},{s:"FOS",t:"INTS3",l:"tf"},
+      {s:"FOS",t:"NOL10",l:"tf"},{s:"FOS",t:"TRAF3IP3",l:"tf"},{s:"FOS",t:"ZNF687",l:"tf"},
+      {s:"FOS",t:"MRPS14",l:"tf"},{s:"FOS",t:"WDR75",l:"tf"},{s:"FOS",t:"INTS11",l:"tf"},
+      {s:"EGR1",t:"KDM4A",l:"tf"},{s:"EGR1",t:"WASF2",l:"tf"},{s:"EGR1",t:"EPRS",l:"tf"},
+      {s:"EGR1",t:"CCNL2",l:"tf"},{s:"EGR1",t:"INTS3",l:"tf"},{s:"EGR1",t:"MOB4",l:"tf"},
+      {s:"EGR1",t:"MRPS9",l:"tf"},{s:"EGR1",t:"NOL10",l:"tf"},{s:"EGR1",t:"ZNF687",l:"tf"},
+      {s:"EGR1",t:"MRPS14",l:"tf"},{s:"EGR1",t:"INTS11",l:"tf"},
+      {s:"ESR1",t:"WASF2",l:"tf"},{s:"ESR1",t:"CDK11A",l:"tf"},{s:"ESR1",t:"YARS",l:"tf"},
+      {s:"ESR1",t:"CCNL2",l:"tf"},{s:"ESR1",t:"MRPS9",l:"tf"},{s:"ESR1",t:"NOL10",l:"tf"},
+      {s:"ESR1",t:"ZNF687",l:"tf"},{s:"ESR1",t:"MRPL20",l:"tf"},{s:"ESR1",t:"WDR75",l:"tf"},
+      {s:"ESR1",t:"INTS11",l:"tf"},
+      {s:"E2F4",t:"KDM4A",l:"tf"},{s:"E2F4",t:"INTS7",l:"tf"},{s:"E2F4",t:"CDK11A",l:"tf"},
+      {s:"E2F4",t:"EPRS",l:"tf"},{s:"E2F4",t:"CCNL2",l:"tf"},{s:"E2F4",t:"CENPL",l:"tf"},
+      {s:"E2F4",t:"MOB4",l:"tf"},{s:"E2F4",t:"TRAF3IP3",l:"tf"},{s:"E2F4",t:"ZNF687",l:"tf"},
+      {s:"E2F4",t:"CENPS",l:"tf"},{s:"E2F4",t:"MRPL20",l:"tf"},{s:"E2F4",t:"INTS11",l:"tf"},
+      {s:"ETS1",t:"KDM4A",l:"tf"},{s:"ETS1",t:"WASF2",l:"tf"},{s:"ETS1",t:"CDK11A",l:"tf"},
+      {s:"ETS1",t:"EPRS",l:"tf"},{s:"ETS1",t:"MRPS15",l:"tf"},{s:"ETS1",t:"CCNL2",l:"tf"},
+      {s:"ETS1",t:"INTS3",l:"tf"},{s:"ETS1",t:"MOB4",l:"tf"},{s:"ETS1",t:"MRPS9",l:"tf"},
+      {s:"ETS1",t:"NOL10",l:"tf"},{s:"ETS1",t:"TRAF3IP3",l:"tf"},{s:"ETS1",t:"ZNF687",l:"tf"},
+      {s:"ETS1",t:"CENPS",l:"tf"},{s:"ETS1",t:"MRPL20",l:"tf"},{s:"ETS1",t:"MRPS14",l:"tf"},
+      {s:"ETS1",t:"WDR75",l:"tf"},{s:"ETS1",t:"INTS11",l:"tf"},
+      {s:"HNF4A",t:"INTS7",l:"tf"},{s:"HNF4A",t:"NCKAP1",l:"tf"},{s:"HNF4A",t:"WASF2",l:"tf"},
+      {s:"HNF4A",t:"CDK11A",l:"tf"},{s:"HNF4A",t:"MRPS15",l:"tf"},{s:"HNF4A",t:"CCNL2",l:"tf"},
+      {s:"HNF4A",t:"INTS3",l:"tf"},{s:"HNF4A",t:"MOB4",l:"tf"},{s:"HNF4A",t:"NOL10",l:"tf"},
+      {s:"HNF4A",t:"ZNF687",l:"tf"},{s:"HNF4A",t:"CENPS",l:"tf"},{s:"HNF4A",t:"MRPL20",l:"tf"},
+      {s:"HNF4A",t:"WDR75",l:"tf"},
+      {s:"STAT1",t:"KDM4A",l:"tf"},{s:"STAT1",t:"INTS7",l:"tf"},{s:"STAT1",t:"NCKAP1",l:"tf"},
+      {s:"STAT1",t:"WASF2",l:"tf"},{s:"STAT1",t:"CDK11A",l:"tf"},{s:"STAT1",t:"EPRS",l:"tf"},
+      {s:"STAT1",t:"YARS",l:"tf"},{s:"STAT1",t:"MRPS9",l:"tf"},{s:"STAT1",t:"NOL10",l:"tf"},
+      {s:"STAT1",t:"ZNF687",l:"tf"},{s:"STAT1",t:"MRPS14",l:"tf"},{s:"STAT1",t:"WDR75",l:"tf"},
+      {s:"CTCF",t:"KDM4A",l:"tf"},{s:"CTCF",t:"INTS7",l:"tf"},{s:"CTCF",t:"NCKAP1",l:"tf"},
+      {s:"CTCF",t:"WASF2",l:"tf"},{s:"CTCF",t:"EPRS",l:"tf"},{s:"CTCF",t:"CCNL2",l:"tf"},
+      {s:"CTCF",t:"INTS3",l:"tf"},{s:"CTCF",t:"MRPS9",l:"tf"},{s:"CTCF",t:"NOL10",l:"tf"},
+      {s:"CTCF",t:"TRAF3IP3",l:"tf"},{s:"CTCF",t:"CENPS",l:"tf"},{s:"CTCF",t:"MRPL20",l:"tf"},
+      {s:"CTCF",t:"MRPS14",l:"tf"},{s:"CTCF",t:"PNO1",l:"tf"},{s:"CTCF",t:"WDR75",l:"tf"},
+      {s:"CEBPA",t:"KDM4A",l:"tf"},{s:"CEBPA",t:"INTS7",l:"tf"},{s:"CEBPA",t:"NCKAP1",l:"tf"},
+      {s:"CEBPA",t:"WASF2",l:"tf"},{s:"CEBPA",t:"MRPS15",l:"tf"},{s:"CEBPA",t:"YARS",l:"tf"},
+      {s:"CEBPA",t:"CCNL2",l:"tf"},{s:"CEBPA",t:"CENPL",l:"tf"},{s:"CEBPA",t:"INTS3",l:"tf"},
+      {s:"CEBPA",t:"MOB4",l:"tf"},{s:"CEBPA",t:"MRPS9",l:"tf"},{s:"CEBPA",t:"NOL10",l:"tf"},
+      {s:"CEBPA",t:"TRAF3IP3",l:"tf"},{s:"CEBPA",t:"ZNF687",l:"tf"},
+      {s:"MITF",t:"KDM4A",l:"tf"},{s:"MITF",t:"NCKAP1",l:"tf"},{s:"MITF",t:"WASF2",l:"tf"},
+      {s:"MITF",t:"MRPS15",l:"tf"},{s:"MITF",t:"YARS",l:"tf"},{s:"MITF",t:"INTS3",l:"tf"},
+      {s:"MITF",t:"MRPS9",l:"tf"},{s:"MITF",t:"TRAF3IP3",l:"tf"},{s:"MITF",t:"PNO1",l:"tf"},
+      {s:"FOXA1",t:"KDM4A",l:"tf"},{s:"FOXA1",t:"INTS7",l:"tf"},{s:"FOXA1",t:"NCKAP1",l:"tf"},
+      {s:"FOXA1",t:"WASF2",l:"tf"},{s:"FOXA1",t:"EPRS",l:"tf"},{s:"FOXA1",t:"INTS3",l:"tf"},
+      {s:"FOXA1",t:"MRPS9",l:"tf"},{s:"FOXA1",t:"NOL10",l:"tf"},{s:"FOXA1",t:"ZNF687",l:"tf"},
+      {s:"FOXA1",t:"CENPS",l:"tf"},{s:"FOXA1",t:"MRPS14",l:"tf"},{s:"FOXA1",t:"WDR75",l:"tf"},
+      {s:"TFAP2C",t:"KDM4A",l:"tf"},{s:"TFAP2C",t:"INTS7",l:"tf"},{s:"TFAP2C",t:"MRPS9",l:"tf"},
+      {s:"TFAP2C",t:"NOL10",l:"tf"},{s:"TFAP2C",t:"TRAF3IP3",l:"tf"},{s:"TFAP2C",t:"ZNF687",l:"tf"},
+      {s:"TFAP2C",t:"CENPS",l:"tf"},{s:"TFAP2C",t:"MRPS14",l:"tf"},{s:"TFAP2C",t:"WDR75",l:"tf"},
+    ];
+
+    const NET_COLOR = {gene:'#5eead4',tf:'#fbbf24',mirna:'#a78bfa',metabolite:'#34d399'};
+    const NET_R     = {gene:14,tf:12,mirna:11,metabolite:10};
+
+    const nNodes = NET_NODES.map(d => ({...d, r:NET_R[d.layer]||10, color:NET_COLOR[d.layer]}));
+    const nEdges = NET_EDGES.map(d => ({source:d.s, target:d.t, layer:d.l}));
+
+    const wrapEl = document.getElementById('net-svg-wrap');
+    let nW = wrapEl.clientWidth, nH = wrapEl.clientHeight;
+
+    const nSvg    = d3.select('#net-svg');
+    const nZoomG  = nSvg.select('#net-zoom-g');
+    const nLinksG = nSvg.select('#net-links-g');
+    const nNodesG = nSvg.select('#net-nodes-g');
+    const nTip    = document.getElementById('net-tooltip');
+
+    const nZoom = d3.zoom().scaleExtent([0.1,8])
+      .on('zoom', e => nZoomG.attr('transform', e.transform));
+    nSvg.call(nZoom).on('dblclick.zoom', null);
+
+    const nLinkSel = nLinksG.selectAll('line').data(nEdges).join('line')
+      .attr('class', d => 'nlink ' + d.layer)
+      .style('fill','none').style('stroke-opacity','0.5')
+      .style('stroke', d => d.layer==='ppi'?'#5eead4':d.layer==='tf'?'#fb923c':d.layer==='mirna'?'#c084fc':'#6ee7b7')
+      .attr('stroke-width', d => d.layer==='ppi'?1.5:1.1)
+      .attr('marker-end', d =>
+        d.layer==='tf'?'url(#net-arrow-tf)':d.layer==='mirna'?'url(#net-arrow-mirna)':
+        d.layer==='metabolite'?'url(#net-arrow-metabolite)':'none');
+
+    let nHighlighted = false;
+    const layerLbl = {gene:'Candidate gene',tf:'Transcription factor',mirna:'miRNA',metabolite:'Metabolite'};
+
+    const nNodeSel = nNodesG.selectAll('g').data(nNodes, d=>d.id).join('g')
+      .style('cursor','pointer')
+      .call(d3.drag()
+        .on('start',(e,d)=>{ if(!e.active) nSim.alphaTarget(0.3).restart(); d.fx=d.x; d.fy=d.y; })
+        .on('drag', (e,d)=>{ d.fx=e.x; d.fy=e.y; })
+        .on('end',  (e,d)=>{ if(!e.active) nSim.alphaTarget(0); d.fx=null; d.fy=null; }))
+      .on('mouseover',(e,d)=>{
+        const cnt = nEdges.filter(k=>(k.source.id||k.source)===d.id||(k.target.id||k.target)===d.id).length;
+        nTip.innerHTML = `<b>${d.full||d.id}</b><br><b>Layer:</b> ${layerLbl[d.layer]}<br><b>Edges:</b> ${cnt}`;
+        nTip.style.display='block';
+      })
+      .on('mousemove',e=>{ nTip.style.left=(e.offsetX+14)+'px'; nTip.style.top=(e.offsetY-10)+'px'; })
+      .on('mouseout',()=>nTip.style.display='none')
+      .on('click',(e,d)=>{
+        e.stopPropagation();
+        const nb=new Set([d.id]);
+        nEdges.forEach(k=>{const s=k.source.id||k.source,t=k.target.id||k.target; if(s===d.id)nb.add(t); if(t===d.id)nb.add(s);});
+        nNodeSel.style('opacity',n=>nb.has(n.id)?1:0.08);
+        nLinkSel.style('opacity',k=>{const s=k.source.id||k.source,t=k.target.id||k.target; return nb.has(s)&&nb.has(t)?0.8:0.04;});
+        nHighlighted=true;
+      });
+
+    nNodeSel.each(function(d){
+      const g=d3.select(this); const cl=d.color;
+      if(d.layer==='gene'){
+        g.append('circle').attr('r',d.r).attr('fill',cl).attr('stroke','#0f172a').attr('stroke-width',1.8);
+      } else if(d.layer==='metabolite'){
+        g.append('rect').attr('x',-d.r*1.4).attr('y',-d.r*0.75)
+         .attr('width',d.r*2.8).attr('height',d.r*1.5).attr('rx',4)
+         .attr('fill',cl).attr('stroke','#0f172a').attr('stroke-width',1.8);
+      } else if(d.layer==='tf'){
+        const s=d.r*1.5;
+        g.append('polygon').attr('points',`0,${-s} ${s},0 0,${s} ${-s},0`)
+         .attr('fill',cl).attr('stroke','#0f172a').attr('stroke-width',1.8);
+      } else if(d.layer==='mirna'){
+        const s=d.r*1.4;
+        g.append('polygon').attr('points',`0,${-s} ${s},${s} ${-s},${s}`)
+         .attr('fill',cl).attr('stroke','#0f172a').attr('stroke-width',1.8);
+      }
+      const fs=d.layer==='gene'?13:d.layer==='tf'?12:11;
+      const dy=d.layer==='metabolite'?d.r*0.75+5:d.r+5;
+      g.append('text').attr('text-anchor','middle').attr('dy',dy)
+       .attr('font-size',fs).attr('font-weight',d.layer==='gene'?'bold':'normal')
+       .attr('font-family','Segoe UI, sans-serif')
+       .attr('fill','#f1f5f9').attr('paint-order','stroke')
+       .attr('stroke','#0f172a').attr('stroke-width',3).attr('stroke-linejoin','round')
+       .text(d.id);
+    });
+
+    const nSim = d3.forceSimulation(nNodes)
+      .force('link',d3.forceLink(nEdges).id(d=>d.id)
+        .distance(d=>d.layer==='ppi'?65:d.layer==='tf'?130:95).strength(0.4))
+      .force('charge',d3.forceManyBody().strength(-250))
+      .force('center',d3.forceCenter(nW/2,nH/2))
+      .force('collide',d3.forceCollide(d=>d.r+24))
+      .on('tick',()=>{
+        nLinkSel.attr('x1',d=>d.source.x).attr('y1',d=>d.source.y)
+                .attr('x2',d=>d.target.x).attr('y2',d=>d.target.y);
+        nNodeSel.attr('transform',d=>`translate(${d.x},${d.y})`);
+      });
+
+    nSvg.on('click',()=>{ if(nHighlighted){ nNodeSel.style('opacity',1); nLinkSel.style('opacity',0.5); nHighlighted=false; }});
+    window.addEventListener('resize',()=>{ nW=wrapEl.clientWidth; nH=wrapEl.clientHeight; nSim.force('center',d3.forceCenter(nW/2,nH/2)).alpha(0.15).restart(); });
+
+    // expose controls to global scope
+    window._netSim=nSim; window._nNodes=nNodes; window._nEdges=nEdges;
+    window._nNodeSel=nNodeSel; window._nLinkSel=nLinkSel;
+    window._nW=()=>nW; window._nH=()=>nH; window._nSvg=nSvg; window._nZoom=nZoom;
+  }
+
+  function netApplyLayout(){
+    const type=document.getElementById('netLayoutSel').value;
+    const nW=window._nW(), nH=window._nH(), nNodes=window._nNodes, nEdges=window._nEdges;
+    const nNodeSel=window._nNodeSel, nLinkSel=window._nLinkSel, nSim=window._netSim;
+    if(type==='force'){ nNodes.forEach(d=>{d.fx=null;d.fy=null;}); nSim.alpha(0.8).restart(); return; }
+    nSim.stop();
+    if(type==='grid'){
+      const order=['gene','tf','mirna','metabolite'];
+      const byL=Object.fromEntries(order.map(l=>[l,nNodes.filter(n=>n.layer===l)]));
+      const rowH=nH/(order.length+1);
+      order.forEach((layer,li)=>byL[layer].forEach((n,i)=>{ n.x=(nW/(byL[layer].length+1))*(i+1); n.y=rowH*(li+1); n.vx=0; n.vy=0; }));
+    }
+    if(type==='concentric'){
+      const radii={gene:nH*0.20,tf:nH*0.36,mirna:nH*0.43,metabolite:nH*0.50};
+      ['gene','tf','mirna','metabolite'].forEach(layer=>{
+        const grp=nNodes.filter(n=>n.layer===layer), r=radii[layer];
+        grp.forEach((n,i)=>{ const a=(2*Math.PI*i/grp.length)-Math.PI/2; n.x=nW/2+r*Math.cos(a); n.y=nH/2+r*Math.sin(a); n.vx=0; n.vy=0; });
+      });
+    }
+    nLinkSel.attr('x1',d=>d.source.x).attr('y1',d=>d.source.y).attr('x2',d=>d.target.x).attr('y2',d=>d.target.y);
+    nNodeSel.attr('transform',d=>`translate(${d.x},${d.y})`);
+  }
+
+  function netFilterEdges(){
+    const f=document.getElementById('netEdgeSel').value;
+    window._nLinkSel.style('display',d=>f==='all'||d.layer===f?null:'none');
+  }
+
+  function netClearHighlight(){
+    window._nNodeSel.style('opacity',1);
+    window._nLinkSel.style('opacity',0.5);
+  }
+
+  function netResetZoom(){
+    window._nSvg.transition().duration(500)
+      .call(window._nZoom.transform, d3.zoomIdentity.translate(window._nW()*0.07, window._nH()*0.07).scale(0.86));
   }
   </script>
 </div>
@@ -1389,6 +1679,7 @@ function showTab(id, btn) {
   btn.classList.add('active');
   if (id === 'viz' && !window._chartsBuilt) { buildCharts(); window._chartsBuilt = true; }
   if (id === 'metabolomics' && !window._metabBuilt) { buildMetabCharts(); window._metabBuilt = true; }
+  if (id === 'network' && !window._netBuilt) { buildNetwork(); window._netBuilt = true; }
 }
 
 // ── Accordion ─────────────────────────────────────────────────────────────────
