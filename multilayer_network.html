@@ -116,38 +116,37 @@ const cy = cytoscape({
           return layerColors[n.data('layer')] || '#475569';
         },
         'label': 'data(label)',
-        'color': '#1e293b',
+        'color': '#f1f5f9',
         'font-size': (n) => {
           const layer = n.data('layer');
-          if (layer === 'gene') return 14;
-          if (layer === 'tf')   return 13;
-          return 12;
+          if (layer === 'gene') return 17;
+          if (layer === 'tf')   return 15;
+          return 13;
         },
-        'font-weight': (n) => n.data('layer') === 'gene' ? 'bold' : 'normal',
+        'font-weight': 'bold',
         'text-valign': 'bottom',
         'text-halign': 'center',
-        'text-margin-y': 5,
-        'text-background-color': '#f8fafc',
-        'text-background-opacity': 0.85,
-        'text-background-padding': '3px',
-        'text-background-shape': 'roundrectangle',
+        'text-margin-y': 6,
+        'text-outline-color': '#0f172a',
+        'text-outline-width': 2.5,
+        'text-background-opacity': 0,
         'width': (n) => {
           const layer = n.data('layer');
           const stab  = n.data('stability');
-          if (stab === '100') return 36;
-          if (stab === 'high') return 30;
-          if (layer === 'gene') return 26;
-          if (layer === 'tf')   return 22;
-          return 18;
+          if (stab === '100') return 46;
+          if (stab === 'high') return 38;
+          if (layer === 'gene') return 34;
+          if (layer === 'tf')   return 28;
+          return 24;
         },
         'height': (n) => {
           const layer = n.data('layer');
           const stab  = n.data('stability');
-          if (stab === '100') return 36;
-          if (stab === 'high') return 30;
-          if (layer === 'gene') return 26;
-          if (layer === 'tf')   return 22;
-          return 18;
+          if (stab === '100') return 46;
+          if (stab === 'high') return 38;
+          if (layer === 'gene') return 34;
+          if (layer === 'tf')   return 28;
+          return 24;
         },
         'shape': (n) => {
           const layer = n.data('layer');
